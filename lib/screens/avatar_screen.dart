@@ -18,6 +18,7 @@ class _AvatarScreenState extends State<AvatarScreen> {
   bool _isListening = false;
   bool _isLoading = false;
   String _userId = 'default_user';
+  String _avatarStatus = 'Listening';
   List<Map<String, String>> _messages = [];
 
   @override
@@ -64,7 +65,10 @@ class _AvatarScreenState extends State<AvatarScreen> {
     _addMessage('user', text);
     _textController.clear();
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _avatarStatus = 'Speaking';
+    });
 
     try {
       // Stream response from backend
@@ -97,10 +101,12 @@ class _AvatarScreenState extends State<AvatarScreen> {
         if (_messages.isNotEmpty && _messages.last['role'] == 'assistant_streaming') {
           _messages.last['role'] = 'assistant';
         }
+        _avatarStatus = 'Listening';
       });
     } catch (e) {
       print('Error: $e');
       _addMessage('error', 'Failed to get response. Please check backend is running.');
+      setState(() => _avatarStatus = 'Listening');
     }
 
     setState(() => _isLoading = false);
@@ -138,6 +144,90 @@ class _AvatarScreenState extends State<AvatarScreen> {
       ),
       body: Column(
         children: [
+          // Avatar Placeholder (future: video player)
+          Container(
+            width: MediaQuery.of(context).size.width,
+            height: MediaQuery.of(context).size.width * 0.75, // 4:3 aspect ratio
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.purple.shade300,
+                  Colors.purple.shade600,
+                ],
+              ),
+            ),
+            child: Stack(
+              children: [
+                Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        _avatarStatus == 'Speaking' ? Icons.record_voice_over : Icons.face,
+                        size: 80,
+                        color: Colors.white.withOpacity(0.8),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Elenora',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Health & Wellness Coach',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _avatarStatus == 'Speaking'
+                          ? Colors.green.withOpacity(0.8)
+                          : Colors.blue.withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _avatarStatus == 'Speaking' ? Icons.mic : Icons.hearing,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          _avatarStatus,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
           // Messages
           Expanded(
             child: ListView.builder(
