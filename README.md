@@ -13,17 +13,18 @@ This is the mobile companion app for the Interactive Coach web platform, providi
 
 ## Features
 
-### Core Features
-- ✅ HeyGen streaming avatar (Elenora)
-- ✅ Deepgram speech-to-text
-- ✅ Claude 4.5 Sonnet AI coaching
-- ✅ Real-time conversation streaming
-- ✅ 5-minute session limit with countdown
-- ✅ Session continuity
-- ✅ User authentication (JWT)
+### Core Features ✅ WORKING
+- ✅ **Text chat with Elenora** - Claude 4.5 Sonnet AI coaching
+- ✅ **Speech-to-text** - iOS native speech recognition
+- ✅ **Real-time conversation streaming** - SSE from FastAPI backend
+- ✅ **Multi-turn conversations** - Conversation history maintained
+- ✅ **Elenora personality** - Health & wellness coach (NOT business coach)
+- 🔲 HeyGen streaming avatar (planned)
+- 🔲 Session time limits (planned)
+- 🔲 User authentication with JWT (planned)
 
-### Health Data Integration
-- ✅ Apple Watch (HealthKit)
+### Health Data Integration 🔲 PLANNED
+- 🔲 Apple Watch (HealthKit)
   - Heart rate (resting, active, max)
   - HRV (Heart Rate Variability)
   - SpO2 (blood oxygen)
@@ -31,12 +32,12 @@ This is the mobile companion app for the Interactive Coach web platform, providi
   - Sleep quality
   - Steps and active minutes
   - Workout data
-- ✅ Android Watch (Health Connect)
+- 🔲 Android Watch (Health Connect)
   - Same metrics as iOS
-- ✅ Background sync (every 15 minutes)
-- ✅ Health dashboard UI
+- 🔲 Background sync (every 15 minutes)
+- 🔲 Health dashboard UI
 
-### Mobile-Specific Features
+### Mobile-Specific Features 🔲 PLANNED
 - Push notifications
 - Offline mode (cached conversations)
 - Biometric authentication (Face ID, Touch ID, Fingerprint)
