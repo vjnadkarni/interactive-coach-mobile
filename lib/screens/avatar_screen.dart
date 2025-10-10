@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:webview_flutter/webview_flutter.dart';
 import '../services/api_service.dart';
+import '../utils/constants.dart';
 
 class AvatarScreen extends StatefulWidget {
   const AvatarScreen({super.key});
@@ -15,16 +17,19 @@ class _AvatarScreenState extends State<AvatarScreen> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
+  late WebViewController _webViewController;
   bool _isListening = false;
   bool _isLoading = false;
+  bool _isWebViewReady = false;
   String _userId = 'default_user';
-  String _avatarStatus = 'Listening';
+  String _avatarStatus = 'Loading...';
   List<Map<String, String>> _messages = [];
 
   @override
   void initState() {
     super.initState();
     _initSpeech();
+    _initWebView();
     _addMessage('assistant', 'Hi! I\'m Elenora, your health and wellness coach. How can I help you today?');
   }
 
@@ -39,6 +44,84 @@ class _AvatarScreenState extends State<AvatarScreen> {
     } else {
       print('❌ Speech recognition not available');
     }
+  }
+
+  void _initWebView() {
+    _webViewController = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(const Color(0x00000000))
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onProgress: (int progress) {
+            print('🔵 WebView loading: $progress%');
+          },
+          onPageStarted: (String url) {
+            print('🔵 Page started loading: $url');
+            setState(() {
+              _avatarStatus = 'Connecting...';
+            });
+          },
+          onPageFinished: (String url) {
+            print('✅ Page finished loading: $url');
+            setState(() {
+              _isWebViewReady = true;
+              _avatarStatus = 'Ready';
+            });
+          },
+          onWebResourceError: (WebResourceError error) {
+            print('❌ WebView error: ${error.description}');
+            setState(() {
+              _avatarStatus = 'Error loading avatar';
+            });
+          },
+        ),
+      )
+      ..addJavaScriptChannel(
+        'FlutterChannel',
+        onMessageReceived: (JavaScriptMessage message) {
+          _handleWebViewMessage(message.message);
+        },
+      )
+      ..loadRequest(Uri.parse(AppConstants.mobileAvatarUrl));
+  }
+
+  void _handleWebViewMessage(String message) {
+    print('📨 Message from WebView: $message');
+
+    try {
+      // Parse JSON message from WebView
+      // Expected format: {"type": "status", "status": "speaking"}
+      // For now, just log it
+      setState(() {
+        if (message.contains('speaking')) {
+          _avatarStatus = 'Speaking';
+        } else if (message.contains('listening')) {
+          _avatarStatus = 'Listening';
+        } else if (message.contains('ready')) {
+          _avatarStatus = 'Ready';
+        }
+      });
+    } catch (e) {
+      print('Error parsing WebView message: $e');
+    }
+  }
+
+  void _sendToWebView(String type, String text) {
+    if (!_isWebViewReady) {
+      print('⚠️ WebView not ready yet');
+      return;
+    }
+
+    // Send message to WebView JavaScript
+    final jsCode = '''
+      window.postMessage({
+        type: '$type',
+        text: `$text`
+      }, '*');
+    ''';
+
+    _webViewController.runJavaScript(jsCode);
+    print('📤 Sent to WebView: $type');
   }
 
   void _addMessage(String role, String content) {
@@ -67,7 +150,7 @@ class _AvatarScreenState extends State<AvatarScreen> {
 
     setState(() {
       _isLoading = true;
-      _avatarStatus = 'Speaking';
+      _avatarStatus = 'Thinking...';
     });
 
     try {
@@ -101,12 +184,19 @@ class _AvatarScreenState extends State<AvatarScreen> {
         if (_messages.isNotEmpty && _messages.last['role'] == 'assistant_streaming') {
           _messages.last['role'] = 'assistant';
         }
-        _avatarStatus = 'Listening';
       });
+
+      // Send to WebView to make Elenora speak
+      if (_isWebViewReady && fullResponse.isNotEmpty) {
+        _sendToWebView('speak', fullResponse);
+        setState(() => _avatarStatus = 'Speaking');
+      } else {
+        setState(() => _avatarStatus = 'Listening');
+      }
     } catch (e) {
       print('Error: $e');
       _addMessage('error', 'Failed to get response. Please check backend is running.');
-      setState(() => _avatarStatus = 'Listening');
+      setState(() => _avatarStatus = 'Error');
     }
 
     setState(() => _isLoading = false);
@@ -144,86 +234,34 @@ class _AvatarScreenState extends State<AvatarScreen> {
       ),
       body: Column(
         children: [
-          // Avatar Placeholder (future: video player)
+          // Avatar WebView
           Container(
             width: MediaQuery.of(context).size.width,
             height: MediaQuery.of(context).size.width * 0.75, // 4:3 aspect ratio
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.purple.shade300,
-                  Colors.purple.shade600,
-                ],
-              ),
-            ),
+            color: Colors.black,
             child: Stack(
               children: [
-                Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        _avatarStatus == 'Speaking' ? Icons.record_voice_over : Icons.face,
-                        size: 80,
-                        color: Colors.white.withOpacity(0.8),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Elenora',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Health & Wellness Coach',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Positioned(
-                  top: 12,
-                  right: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _avatarStatus == 'Speaking'
-                          ? Colors.green.withOpacity(0.8)
-                          : Colors.blue.withOpacity(0.8),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          _avatarStatus == 'Speaking' ? Icons.mic : Icons.hearing,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          _avatarStatus,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                // WebView with HeyGen avatar
+                WebViewWidget(controller: _webViewController),
+
+                // Status overlay (only show while loading)
+                if (!_isWebViewReady)
+                  Container(
+                    color: Colors.black,
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const CircularProgressIndicator(color: Colors.white),
+                          const SizedBox(height: 16),
+                          Text(
+                            _avatarStatus,
+                            style: const TextStyle(color: Colors.white),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
           ),
