@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/health_service.dart';
+import '../services/health_sync_service.dart';
 
 /// Test screen for verifying HealthKit integration
 /// Use this to test permissions and data fetching before building the full dashboard
@@ -12,15 +13,27 @@ class HealthTestScreen extends StatefulWidget {
 
 class _HealthTestScreenState extends State<HealthTestScreen> {
   final HealthService _healthService = HealthService();
+  final HealthSyncService _syncService = HealthSyncService();
 
   bool _isLoading = false;
+  bool _isSyncing = false;
   bool _hasPermissions = false;
   String _testResults = 'Tap "Request Permissions" to begin';
+  String _syncResults = 'Sync status will appear here';
+  DateTime? _lastSync;
 
   @override
   void initState() {
     super.initState();
     _checkPermissions();
+    _loadLastSync();
+  }
+
+  Future<void> _loadLastSync() async {
+    final lastSync = await _syncService.getLastSyncTimestamp();
+    setState(() {
+      _lastSync = lastSync;
+    });
   }
 
   Future<void> _checkPermissions() async {
@@ -122,6 +135,89 @@ class _HealthTestScreenState extends State<HealthTestScreen> {
     }
   }
 
+  Future<void> _syncVitals() async {
+    if (!_hasPermissions) {
+      setState(() {
+        _syncResults = '❌ No permissions. Request permissions first.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isSyncing = true;
+      _syncResults = 'Syncing vitals to backend...';
+    });
+
+    final success = await _syncService.syncVitalsToBackend();
+    await _loadLastSync();
+
+    setState(() {
+      _isSyncing = false;
+      _syncResults = success
+          ? '✅ Vitals synced successfully!\nLast sync: ${_formatDateTime(_lastSync)}'
+          : '❌ Failed to sync vitals. Check backend connection.';
+    });
+  }
+
+  Future<void> _syncActivity() async {
+    if (!_hasPermissions) {
+      setState(() {
+        _syncResults = '❌ No permissions. Request permissions first.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isSyncing = true;
+      _syncResults = 'Syncing activity to backend...';
+    });
+
+    final success = await _syncService.syncActivityToBackend();
+    await _loadLastSync();
+
+    setState(() {
+      _isSyncing = false;
+      _syncResults = success
+          ? '✅ Activity synced successfully!\nLast sync: ${_formatDateTime(_lastSync)}'
+          : '❌ Failed to sync activity. Check backend connection.';
+    });
+  }
+
+  Future<void> _syncAllData() async {
+    if (!_hasPermissions) {
+      setState(() {
+        _syncResults = '❌ No permissions. Request permissions first.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isSyncing = true;
+      _syncResults = 'Syncing all health data to backend...';
+    });
+
+    final results = await _syncService.syncAllHealthData();
+    await _loadLastSync();
+
+    final StringBuffer summary = StringBuffer();
+    summary.writeln('=== SYNC RESULTS ===\n');
+    summary.writeln('Vitals: ${results['vitals']! ? "✅ Success" : "❌ Failed"}');
+    summary.writeln('Activity: ${results['activity']! ? "✅ Success" : "❌ Failed"}');
+    summary.writeln('Sleep: ${results['sleep']! ? "✅ Success" : "❌ Failed"}');
+    summary.writeln('\nLast sync: ${_formatDateTime(_lastSync)}');
+
+    setState(() {
+      _isSyncing = false;
+      _syncResults = summary.toString();
+    });
+  }
+
+  String _formatDateTime(DateTime? dateTime) {
+    if (dateTime == null) return 'Never';
+    return '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')} '
+        '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -194,6 +290,107 @@ class _HealthTestScreenState extends State<HealthTestScreen> {
                     ),
                   ),
                 ],
+              ),
+
+              const SizedBox(height: 24),
+
+              // Sync section
+              const Text(
+                'Backend Sync',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Last sync info
+              if (_lastSync != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    'Last sync: ${_formatDateTime(_lastSync)}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
+
+              // Sync buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _isSyncing || !_hasPermissions ? null : _syncVitals,
+                      icon: const Icon(Icons.favorite, size: 18),
+                      label: const Text('Sync Vitals'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        backgroundColor: Colors.red.shade400,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _isSyncing || !_hasPermissions ? null : _syncActivity,
+                      icon: const Icon(Icons.directions_run, size: 18),
+                      label: const Text('Sync Activity'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        backgroundColor: Colors.orange.shade400,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _isSyncing || !_hasPermissions ? null : _syncAllData,
+                      icon: const Icon(Icons.cloud_upload, size: 18),
+                      label: const Text('Sync All'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        backgroundColor: Colors.green.shade600,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 16),
+
+              // Sync results
+              Card(
+                color: Colors.purple.shade50,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  height: 120,
+                  child: SingleChildScrollView(
+                    child: _isSyncing
+                        ? const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                CircularProgressIndicator(),
+                                SizedBox(height: 8),
+                                Text('Syncing...'),
+                              ],
+                            ),
+                          )
+                        : SelectableText(
+                            _syncResults,
+                            style: TextStyle(
+                              fontFamily: 'Courier',
+                              fontSize: 13,
+                              color: Colors.purple.shade900,
+                            ),
+                          ),
+                  ),
+                ),
               ),
 
               const SizedBox(height: 24),
