@@ -13,6 +13,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:health/health.dart';
 import 'health_service.dart';
 
 class HealthSyncService {
@@ -86,8 +87,8 @@ class HealthSyncService {
 
       // Fetch heart rate data from HealthKit
       final heartRateData = await _healthService.getHeartRateData(
-        start: lastSync,
-        end: now,
+        startTime: lastSync,
+        endTime: now,
       );
 
       if (heartRateData.isEmpty) {
@@ -108,7 +109,7 @@ class HealthSyncService {
       for (final dataPoint in heartRateData) {
         final payload = {
           'timestamp': dataPoint.dateFrom.toUtc().toIso8601String(),
-          'heart_rate': dataPoint.value.round(),
+          'heart_rate': (dataPoint.value as NumericHealthValue).numericValue.round(),
           if (latestHRV != null) 'hrv': latestHRV,
           if (latestSpO2 != null) 'spo2': latestSpO2?.round(),
         };

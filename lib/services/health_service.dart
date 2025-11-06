@@ -24,7 +24,6 @@ class HealthService {
     HealthDataType.STEPS,
     HealthDataType.ACTIVE_ENERGY_BURNED,
     HealthDataType.EXERCISE_TIME,
-    HealthDataType.MOVE_MINUTES, // Stand time equivalent
     HealthDataType.DISTANCE_WALKING_RUNNING,
 
     // Sleep
@@ -49,11 +48,12 @@ class HealthService {
 
     try {
       // Request authorization for all data types
+      // Need one permission per data type
+      final permissions = List.filled(_healthDataTypes.length, HealthDataAccess.READ);
+
       final bool authorized = await _health.requestAuthorization(
         _healthDataTypes,
-        permissions: [
-          HealthDataAccess.READ, // We only need READ access, not WRITE
-        ],
+        permissions: permissions,
       );
 
       if (authorized) {
@@ -126,7 +126,7 @@ class HealthService {
     data.sort((a, b) => b.dateFrom.compareTo(a.dateFrom));
 
     final latestReading = data.first;
-    return latestReading.value.toDouble();
+    return (latestReading.value as NumericHealthValue).numericValue.toDouble();
   }
 
   /// Fetch heart rate variability (HRV) data
@@ -169,7 +169,7 @@ class HealthService {
     data.sort((a, b) => b.dateFrom.compareTo(a.dateFrom));
 
     final latestReading = data.first;
-    return latestReading.value.toDouble();
+    return (latestReading.value as NumericHealthValue).numericValue.toDouble();
   }
 
   /// Fetch blood oxygen (SpO2) data
@@ -213,7 +213,7 @@ class HealthService {
 
     final latestReading = data.first;
     // Convert from 0-1 scale to 0-100 percentage
-    return latestReading.value.toDouble() * 100;
+    return (latestReading.value as NumericHealthValue).numericValue.toDouble() * 100;
   }
 
   /// Fetch step count for a specific date
@@ -236,7 +236,7 @@ class HealthService {
       // Sum all step readings for the day
       int totalSteps = 0;
       for (final dataPoint in healthData) {
-        totalSteps += dataPoint.value.toInt();
+        totalSteps += (dataPoint.value as NumericHealthValue).numericValue.toInt();
       }
 
       print('✅ [HealthService] Total steps: $totalSteps');
@@ -267,7 +267,7 @@ class HealthService {
       // Sum all energy readings for the day
       double totalEnergy = 0.0;
       for (final dataPoint in healthData) {
-        totalEnergy += dataPoint.value.toDouble();
+        totalEnergy += (dataPoint.value as NumericHealthValue).numericValue.toDouble();
       }
 
       print('✅ [HealthService] Total active energy: $totalEnergy kcal');
@@ -304,38 +304,38 @@ class HealthService {
       // Process vitals
       final heartRateData = allData.where((d) => d.type == HealthDataType.HEART_RATE).toList();
       if (heartRateData.isNotEmpty) {
-        final avgHR = heartRateData.map((d) => d.value.toDouble()).reduce((a, b) => a + b) / heartRateData.length;
+        final avgHR = heartRateData.map((d) => (d.value as NumericHealthValue).numericValue.toDouble()).reduce((a, b) => a + b) / heartRateData.length;
         summary['vitals']['avgHeartRate'] = avgHR.round();
-        summary['vitals']['minHeartRate'] = heartRateData.map((d) => d.value.toDouble()).reduce((a, b) => a < b ? a : b).round();
-        summary['vitals']['maxHeartRate'] = heartRateData.map((d) => d.value.toDouble()).reduce((a, b) => a > b ? a : b).round();
+        summary['vitals']['minHeartRate'] = heartRateData.map((d) => (d.value as NumericHealthValue).numericValue.toDouble()).reduce((a, b) => a < b ? a : b).round();
+        summary['vitals']['maxHeartRate'] = heartRateData.map((d) => (d.value as NumericHealthValue).numericValue.toDouble()).reduce((a, b) => a > b ? a : b).round();
       }
 
       final hrvData = allData.where((d) => d.type == HealthDataType.HEART_RATE_VARIABILITY_SDNN).toList();
       if (hrvData.isNotEmpty) {
-        final avgHRV = hrvData.map((d) => d.value.toDouble()).reduce((a, b) => a + b) / hrvData.length;
+        final avgHRV = hrvData.map((d) => (d.value as NumericHealthValue).numericValue.toDouble()).reduce((a, b) => a + b) / hrvData.length;
         summary['vitals']['avgHRV'] = avgHRV.round();
       }
 
       final spo2Data = allData.where((d) => d.type == HealthDataType.BLOOD_OXYGEN).toList();
       if (spo2Data.isNotEmpty) {
-        final avgSpO2 = spo2Data.map((d) => d.value.toDouble()).reduce((a, b) => a + b) / spo2Data.length;
+        final avgSpO2 = spo2Data.map((d) => (d.value as NumericHealthValue).numericValue.toDouble()).reduce((a, b) => a + b) / spo2Data.length;
         summary['vitals']['avgSpO2'] = (avgSpO2 * 100).round(); // Convert to percentage
       }
 
       // Process activity
       final stepsData = allData.where((d) => d.type == HealthDataType.STEPS).toList();
       if (stepsData.isNotEmpty) {
-        summary['activity']['steps'] = stepsData.map((d) => d.value.toInt()).reduce((a, b) => a + b);
+        summary['activity']['steps'] = stepsData.map((d) => (d.value as NumericHealthValue).numericValue.toInt()).reduce((a, b) => a + b);
       }
 
       final energyData = allData.where((d) => d.type == HealthDataType.ACTIVE_ENERGY_BURNED).toList();
       if (energyData.isNotEmpty) {
-        summary['activity']['activeCalories'] = energyData.map((d) => d.value.toDouble()).reduce((a, b) => a + b).round();
+        summary['activity']['activeCalories'] = energyData.map((d) => (d.value as NumericHealthValue).numericValue.toDouble()).reduce((a, b) => a + b).round();
       }
 
       final exerciseData = allData.where((d) => d.type == HealthDataType.EXERCISE_TIME).toList();
       if (exerciseData.isNotEmpty) {
-        summary['activity']['exerciseMinutes'] = exerciseData.map((d) => d.value.toInt()).reduce((a, b) => a + b);
+        summary['activity']['exerciseMinutes'] = exerciseData.map((d) => (d.value as NumericHealthValue).numericValue.toInt()).reduce((a, b) => a + b);
       }
 
       print('✅ [HealthService] Daily summary complete');
