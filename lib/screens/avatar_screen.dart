@@ -3,6 +3,7 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:webview_flutter/webview_flutter.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
+import 'health_test_screen.dart';
 
 class AvatarScreen extends StatefulWidget {
   const AvatarScreen({super.key});
@@ -366,6 +367,18 @@ class _AvatarScreenState extends State<AvatarScreen> {
             ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const HealthTestScreen()),
+          );
+        },
+        icon: const Icon(Icons.favorite),
+        label: const Text('Health Test'),
+        backgroundColor: Colors.red.shade400,
+        tooltip: 'Test HealthKit Integration',
       ),
     );
   }
