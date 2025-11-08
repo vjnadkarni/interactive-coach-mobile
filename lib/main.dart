@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'screens/avatar_screen.dart';
+import 'screens/chat_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/auth_service.dart';
 
@@ -42,7 +42,7 @@ class MyApp extends StatelessWidget {
 /// Authentication Gate
 ///
 /// Checks if user is authenticated and routes to appropriate screen.
-/// - If authenticated: AvatarScreen
+/// - If authenticated: ChatScreen (Voice + Text mode)
 /// - If not authenticated: LoginScreen
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
@@ -97,7 +97,7 @@ class _AuthGateState extends State<AuthGate> {
     }
 
     // Route to appropriate screen based on authentication status
-    return _isAuthenticated ? const AvatarScreen() : const LoginScreen();
+    return _isAuthenticated ? const ChatScreen() : const LoginScreen();
   }
 }
 

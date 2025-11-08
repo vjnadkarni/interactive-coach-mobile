@@ -5,6 +5,8 @@ class AppConstants {
   static String get backendUrl => dotenv.env['BACKEND_URL'] ?? 'http://localhost:8000';
   static String get heygenApiKey => dotenv.env['HEYGEN_API_KEY'] ?? '';
   static String get deepgramApiKey => dotenv.env['DEEPGRAM_API_KEY'] ?? '';
+  static String get elevenLabsApiKey => dotenv.env['ELEVENLABS_API_KEY'] ?? '';
+  static String get elevenLabsVoiceId => dotenv.env['ELEVENLABS_VOICE_ID'] ?? '21m00Tcm4TlvDq8ikWAM';
 
   // HeyGen Avatar Configuration
   static const String avatarId = 'Elenora_FitnessCoach2_public';

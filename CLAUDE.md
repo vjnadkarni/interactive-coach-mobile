@@ -203,20 +203,26 @@ uvicorn main:app --reload --host 0.0.0.0
 
 ### Current Implementation ✅ WORKING
 
-**Basic Chat Interface** (Tested Oct 9, 2025 on iPhone 12)
-- **Text Input**: Type messages to Elenora
-- **Speech-to-Text**: Tap microphone, speak, transcript appears
-- **Streaming Responses**: Claude responses stream in real-time via SSE
-- **Multi-turn Conversations**: Conversation history maintained
-- **Elenora Personality**: Correct health & wellness coach identity
+**Voice-to-Voice Chat Interface** (Tested Nov 8, 2025 on iPhone 12)
+- **Voice Input (STT)**: speech_to_text package - iOS native speech recognition
+- **Text Input**: Type messages to Hera (alternative to voice)
+- **Voice Output (TTS)**: ElevenLabs API with Rachel voice - **FULLY WORKING**
+- **Streaming Responses**: Claude responses stream in real-time via SSE with RAG citations
+- **In-Memory Audio Playback**: Custom `StreamAudioSource` - zero file I/O latency
+- **Multi-turn Conversations**: Conversation history maintained via Supabase
+- **Hera Personality**: Correct health & wellness coach identity
+- **JWT Authentication**: Supabase session tokens for API authorization
 - **Network**: Connects to FastAPI backend over WiFi
 
 **UI Elements**:
-- Purple/magenta theme matching web app
-- App bar: "Elenora - Your Health Coach"
-- Chat bubbles: Blue (user), Purple (Elenora), Red (errors)
+- Purple/blue gradient theme
+- App bar: "Chat with Hera"
+- Mode toggle: Video+Voice (coming soon) / Voice+Text (active)
+- Bottom navigation: Health Dashboard ↔ Chat ↔ User Dashboard
+- Chat bubbles: Blue (user), Purple (Hera), Red (errors)
 - Input area: Microphone button, text field, send button
 - Auto-scroll to latest message
+- Real-time voice transcription display
 
 ### Planned Features 🔲
 
@@ -228,6 +234,60 @@ uvicorn main:app --reload --host 0.0.0.0
 6. **Background Sync** - 15-minute health data updates
 7. **Session Time Limits** - Configurable session duration
 8. **Offline Mode** - Cached conversations
+
+---
+
+## 🔊 Text-to-Speech (TTS) Implementation
+
+### ElevenLabs Integration ✅ WORKING
+
+**Voice**: Rachel (same as web app) - Voice ID: `21m00Tcm4TlvDq8ikWAM`
+
+**Architecture**:
+1. **Backend Response**: Claude streams text response via SSE
+2. **References Stripped**: `_stripReferences()` removes citation section before TTS
+3. **ElevenLabs API**: POST request to `/v1/text-to-speech/{voice_id}/stream`
+4. **In-Memory Streaming**: Custom `BytesAudioSource` extends `StreamAudioSource`
+5. **Zero File I/O**: Audio bytes streamed directly from memory to iOS audio engine
+6. **Audio Session**: Configured with `AudioSessionConfiguration.speech()`
+
+**Key Files**:
+- [lib/services/tts_service.dart](lib/services/tts_service.dart) - TTS service with custom StreamAudioSource
+- [lib/screens/chat_screen.dart](lib/screens/chat_screen.dart#L130) - Automatic playback after AI response
+
+**Custom StreamAudioSource**:
+```dart
+class BytesAudioSource extends StreamAudioSource {
+  final Uint8List _bytes;
+
+  BytesAudioSource(this._bytes);
+
+  @override
+  Future<StreamAudioResponse> request([int? start, int? end]) async {
+    start = start ?? 0;
+    end = end ?? _bytes.length;
+
+    return StreamAudioResponse(
+      sourceLength: _bytes.length,
+      contentLength: end - start,
+      offset: start,
+      stream: Stream.value(_bytes.sublist(start, end)),
+      contentType: 'audio/mpeg',
+    );
+  }
+}
+```
+
+**Why This Works**:
+- iOS audio engine can request audio chunks for seeking/buffering
+- No filesystem latency - everything stays in RAM
+- Proper content type and length metadata
+- Supports partial range requests
+
+**Performance**:
+- Audio generation: ~1-3 seconds (ElevenLabs API)
+- Playback start: Immediate (no file I/O delay)
+- Total latency: Minimal, comparable to web app
 
 ---
 
@@ -245,8 +305,11 @@ uvicorn main:app --reload --host 0.0.0.0
 - **AI**: Claude 4.5 Sonnet via backend
 
 ### Key Packages
-- **speech_to_text**: ^7.0.0 - iOS native speech recognition
+- **speech_to_text**: ^7.0.0 - iOS native speech recognition (STT)
+- **just_audio**: ^0.9.40 - Audio playback for TTS
+- **audio_session**: ^0.1.25 - iOS audio session configuration
 - **http**: ^1.2.1 - HTTP client for API calls
+- **supabase_flutter**: ^2.9.2 - Authentication and database
 - **flutter_dotenv**: ^5.1.0 - Environment variables
 - **health**: ^13.2.0 - HealthKit + Health Connect (future)
 - **video_player**: ^2.9.1 - HeyGen avatar (future)

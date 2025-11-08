@@ -7,6 +7,7 @@ import '../services/health_sync_service.dart';
 import '../services/health_service.dart';
 import '../services/health_observer_service.dart';
 import '../services/auth_service.dart';
+import 'chat_screen.dart';
 
 /// Health Dashboard Screen
 ///
@@ -302,6 +303,37 @@ class _HealthDashboardScreenState extends State<HealthDashboardScreen> {
                       ],
                     ),
                   ),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: 0, // Health tab selected
+        onTap: (index) {
+          if (index == 1) {
+            // Navigate to Chat Screen
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => const ChatScreen()),
+            );
+          } else if (index == 2) {
+            // Navigate to User Dashboard
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('User Dashboard - Coming Soon')),
+            );
+          }
+          // index == 0 is current screen (Health), do nothing
+        },
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.favorite),
+            label: 'Health',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.chat),
+            label: 'Chat',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: 'Dashboard',
+          ),
+        ],
       ),
     );
   }

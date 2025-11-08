@@ -26,8 +26,21 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Interactive Coach needs access to your health data from Apple Watch to provide personalized fitness coaching, track your progress, and give you insights based on your heart rate, activity, sleep, and other health metrics.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Interactive Coach may save workout and health data to your Health app for comprehensive tracking and analysis.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app needs microphone access so you can speak with Elenora.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>This app uses speech recognition so you can talk to Elenora, your health and wellness coach.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>processing</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -44,19 +57,6 @@
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>This app uses speech recognition so you can talk to Elenora, your health and wellness coach.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>This app needs microphone access so you can speak with Elenora.</string>
-	<key>NSHealthShareUsageDescription</key>
-	<string>Interactive Coach needs access to your health data from Apple Watch to provide personalized fitness coaching, track your progress, and give you insights based on your heart rate, activity, sleep, and other health metrics.</string>
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>Interactive Coach may save workout and health data to your Health app for comprehensive tracking and analysis.</string>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>fetch</string>
-		<string>processing</string>
 	</array>
 </dict>
 </plist>

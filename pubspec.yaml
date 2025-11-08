@@ -62,6 +62,9 @@ dependencies:
   # Speech recognition (Deepgram integration)
   speech_to_text: ^7.0.0
 
+  # Audio playback for TTS
+  just_audio: ^0.9.40
+
   # Permissions handling
   permission_handler: ^11.3.1
 
