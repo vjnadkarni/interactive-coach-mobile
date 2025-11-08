@@ -15,6 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:health/health.dart';
 import 'health_service.dart';
+import 'auth_service.dart';
 
 class HealthSyncService {
   // Singleton pattern
@@ -23,6 +24,7 @@ class HealthSyncService {
   HealthSyncService._internal();
 
   final HealthService _healthService = HealthService();
+  final AuthService _authService = AuthService();
 
   // Backend configuration
   String get backendUrl => dotenv.env['BACKEND_URL'] ?? 'http://localhost:8000';
@@ -52,12 +54,9 @@ class HealthSyncService {
     return _getLastSyncTimestamp(_lastSyncKey);
   }
 
-  /// Get JWT token from secure storage
-  /// TODO: Implement actual JWT token retrieval from authentication
+  /// Get JWT token from Supabase authentication
   Future<String?> _getAuthToken() async {
-    // For now, return null - will be implemented when auth is added to mobile app
-    // In Phase 4.1, we'll add proper Supabase auth to mobile app
-    return null;
+    return await _authService.getJwtToken();
   }
 
   /// Get auth headers for API requests
@@ -110,8 +109,8 @@ class HealthSyncService {
         final payload = {
           'timestamp': dataPoint.dateFrom.toUtc().toIso8601String(),
           'heart_rate': (dataPoint.value as NumericHealthValue).numericValue.round(),
-          if (latestHRV != null) 'hrv': latestHRV,
-          if (latestSpO2 != null) 'spo2': latestSpO2?.round(),
+          if (latestHRV != null) 'hrv': latestHRV.value.round(),
+          if (latestSpO2 != null) 'spo2': latestSpO2.value.round(),
         };
 
         final response = await http.post(

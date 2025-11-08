@@ -53,5 +53,10 @@
 	<string>Interactive Coach needs access to your health data from Apple Watch to provide personalized fitness coaching, track your progress, and give you insights based on your heart rate, activity, sleep, and other health metrics.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Interactive Coach may save workout and health data to your Health app for comprehensive tracking and analysis.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>processing</string>
+	</array>
 </dict>
 </plist>

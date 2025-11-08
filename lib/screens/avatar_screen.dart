@@ -4,6 +4,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
 import 'health_test_screen.dart';
+import 'health_dashboard_screen.dart';
 
 class AvatarScreen extends StatefulWidget {
   const AvatarScreen({super.key});
@@ -232,6 +233,19 @@ class _AvatarScreenState extends State<AvatarScreen> {
       appBar: AppBar(
         title: const Text('Elenora - Your Health Coach'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        actions: [
+          // Dashboard button
+          IconButton(
+            icon: const Icon(Icons.dashboard),
+            tooltip: 'Health Dashboard',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const HealthDashboardScreen()),
+              );
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [

@@ -86,13 +86,13 @@ class _HealthTestScreenState extends State<HealthTestScreen> {
 
       // Fetch latest readings
       final hr = await _healthService.getLatestHeartRate();
-      results.writeln('❤️ Heart Rate: ${hr != null ? "${hr.round()} BPM" : "No data available"}');
+      results.writeln('❤️ Heart Rate: ${hr != null ? "${hr.value.round()} BPM (at ${hr.timestamp})" : "No data available"}');
 
       final hrv = await _healthService.getLatestHRV();
-      results.writeln('📊 HRV (SDNN): ${hrv != null ? "${hrv.round()} ms" : "No data available"}');
+      results.writeln('📊 HRV (SDNN): ${hrv != null ? "${hrv.value.round()} ms (at ${hrv.timestamp})" : "No data available"}');
 
       final spo2 = await _healthService.getLatestSpO2();
-      results.writeln('🫁 SpO2: ${spo2 != null ? "${spo2.round()}%" : "No data available"}');
+      results.writeln('🫁 SpO2: ${spo2 != null ? "${spo2.value.round()}% (at ${spo2.timestamp})" : "No data available"}');
 
       final steps = await _healthService.getStepsForDate(DateTime.now());
       results.writeln('👣 Steps Today: ${steps ?? "No data available"}');

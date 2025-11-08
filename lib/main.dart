@@ -1,10 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/avatar_screen.dart';
+import 'screens/login_screen.dart';
+import 'services/auth_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Load environment variables
   await dotenv.load(fileName: ".env");
+
+  // Initialize Supabase
+  await Supabase.initialize(
+    url: dotenv.env['SUPABASE_URL']!,
+    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
+  );
+
   runApp(const MyApp());
 }
 
@@ -14,16 +26,78 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Interactive Coach',
+      title: 'Galeno Genie',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF9C27B0), // Purple
         ),
         useMaterial3: true,
       ),
-      home: const AvatarScreen(),
+      home: const AuthGate(),
       debugShowCheckedModeBanner: false,
     );
+  }
+}
+
+/// Authentication Gate
+///
+/// Checks if user is authenticated and routes to appropriate screen.
+/// - If authenticated: AvatarScreen
+/// - If not authenticated: LoginScreen
+class AuthGate extends StatefulWidget {
+  const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  final AuthService _authService = AuthService();
+  bool _isLoading = true;
+  bool _isAuthenticated = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAuthentication();
+  }
+
+  Future<void> _checkAuthentication() async {
+    // Try to auto-login using stored credentials
+    final isAuthenticated = await _authService.tryAutoLogin();
+
+    setState(() {
+      _isAuthenticated = isAuthenticated;
+      _isLoading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      // Show loading screen while checking authentication
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.fitness_center,
+                size: 80,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(height: 24),
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              const Text('Loading...'),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Route to appropriate screen based on authentication status
+    return _isAuthenticated ? const AvatarScreen() : const LoginScreen();
   }
 }
 

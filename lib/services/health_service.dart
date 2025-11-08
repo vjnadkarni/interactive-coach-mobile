@@ -1,6 +1,14 @@
 import 'package:health/health.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+/// Vital reading with value and timestamp
+class VitalReading {
+  final double value;
+  final DateTime timestamp;
+
+  VitalReading({required this.value, required this.timestamp});
+}
+
 /// Service for interacting with Apple HealthKit
 /// Fetches health data from Apple Watch Series 9 and iPhone sensors
 class HealthService {
@@ -110,15 +118,26 @@ class HealthService {
   }
 
   /// Get latest heart rate reading
-  /// Returns BPM value or null if no data
-  Future<double?> getLatestHeartRate() async {
+  /// Returns VitalReading with BPM value and timestamp, or null if no data
+  /// Fetches fresh data from the last 2 minutes (matching web dashboard refresh interval)
+  Future<VitalReading?> getLatestHeartRate() async {
     final now = DateTime.now();
-    final yesterday = now.subtract(const Duration(hours: 24));
+    // Use 2-minute window to match web dashboard refresh interval
+    final twoMinutesAgo = now.subtract(const Duration(minutes: 2));
 
-    final data = await getHeartRateData(
-      startTime: yesterday,
+    var data = await getHeartRateData(
+      startTime: twoMinutesAgo,
       endTime: now,
     );
+
+    // If no data in last 2 minutes, try last hour
+    if (data.isEmpty) {
+      final oneHourAgo = now.subtract(const Duration(hours: 1));
+      data = await getHeartRateData(
+        startTime: oneHourAgo,
+        endTime: now,
+      );
+    }
 
     if (data.isEmpty) return null;
 
@@ -126,7 +145,11 @@ class HealthService {
     data.sort((a, b) => b.dateFrom.compareTo(a.dateFrom));
 
     final latestReading = data.first;
-    return (latestReading.value as NumericHealthValue).numericValue.toDouble();
+    final value = (latestReading.value as NumericHealthValue).numericValue.toDouble();
+    final timestamp = latestReading.dateFrom;
+
+    print('🔴 Latest HR: $value BPM at $timestamp');
+    return VitalReading(value: value, timestamp: timestamp);
   }
 
   /// Fetch heart rate variability (HRV) data
@@ -153,15 +176,26 @@ class HealthService {
   }
 
   /// Get latest HRV reading
-  /// Returns SDNN in milliseconds or null if no data
-  Future<double?> getLatestHRV() async {
+  /// Returns VitalReading with SDNN in milliseconds and timestamp, or null if no data
+  /// Fetches fresh data from the last 2 minutes (matching web dashboard refresh interval)
+  Future<VitalReading?> getLatestHRV() async {
     final now = DateTime.now();
-    final yesterday = now.subtract(const Duration(days: 1));
+    // Use 2-minute window to match web dashboard refresh interval
+    final twoMinutesAgo = now.subtract(const Duration(minutes: 2));
 
-    final data = await getHRVData(
-      startTime: yesterday,
+    var data = await getHRVData(
+      startTime: twoMinutesAgo,
       endTime: now,
     );
+
+    // If no data in last 2 minutes, try last 24 hours (HRV is measured less frequently)
+    if (data.isEmpty) {
+      final yesterday = now.subtract(const Duration(days: 1));
+      data = await getHRVData(
+        startTime: yesterday,
+        endTime: now,
+      );
+    }
 
     if (data.isEmpty) return null;
 
@@ -169,7 +203,11 @@ class HealthService {
     data.sort((a, b) => b.dateFrom.compareTo(a.dateFrom));
 
     final latestReading = data.first;
-    return (latestReading.value as NumericHealthValue).numericValue.toDouble();
+    final value = (latestReading.value as NumericHealthValue).numericValue.toDouble();
+    final timestamp = latestReading.dateFrom;
+
+    print('💙 Latest HRV: $value ms at $timestamp');
+    return VitalReading(value: value, timestamp: timestamp);
   }
 
   /// Fetch blood oxygen (SpO2) data
@@ -196,15 +234,26 @@ class HealthService {
   }
 
   /// Get latest SpO2 reading
-  /// Returns percentage (0-100) or null if no data
-  Future<double?> getLatestSpO2() async {
+  /// Returns VitalReading with percentage (0-100) and timestamp, or null if no data
+  /// Fetches fresh data from the last 2 minutes (matching web dashboard refresh interval)
+  Future<VitalReading?> getLatestSpO2() async {
     final now = DateTime.now();
-    final yesterday = now.subtract(const Duration(days: 1));
+    // Use 2-minute window to match web dashboard refresh interval
+    final twoMinutesAgo = now.subtract(const Duration(minutes: 2));
 
-    final data = await getSpO2Data(
-      startTime: yesterday,
+    var data = await getSpO2Data(
+      startTime: twoMinutesAgo,
       endTime: now,
     );
+
+    // If no data in last 2 minutes, try last 24 hours (SpO2 is measured less frequently)
+    if (data.isEmpty) {
+      final yesterday = now.subtract(const Duration(days: 1));
+      data = await getSpO2Data(
+        startTime: yesterday,
+        endTime: now,
+      );
+    }
 
     if (data.isEmpty) return null;
 
@@ -213,7 +262,11 @@ class HealthService {
 
     final latestReading = data.first;
     // Convert from 0-1 scale to 0-100 percentage
-    return (latestReading.value as NumericHealthValue).numericValue.toDouble() * 100;
+    final value = (latestReading.value as NumericHealthValue).numericValue.toDouble() * 100;
+    final timestamp = latestReading.dateFrom;
+
+    print('🫁 Latest SpO2: $value% at $timestamp');
+    return VitalReading(value: value, timestamp: timestamp);
   }
 
   /// Fetch step count for a specific date
@@ -364,13 +417,13 @@ class HealthService {
     print('\n--- Latest Readings ---');
 
     final hr = await getLatestHeartRate();
-    print('Heart Rate: ${hr != null ? "$hr BPM" : "No data"}');
+    print('Heart Rate: ${hr != null ? "${hr.value} BPM (at ${hr.timestamp})" : "No data"}');
 
     final hrv = await getLatestHRV();
-    print('HRV (SDNN): ${hrv != null ? "$hrv ms" : "No data"}');
+    print('HRV (SDNN): ${hrv != null ? "${hrv.value} ms (at ${hrv.timestamp})" : "No data"}');
 
     final spo2 = await getLatestSpO2();
-    print('SpO2: ${spo2 != null ? "${spo2.round()}%" : "No data"}');
+    print('SpO2: ${spo2 != null ? "${spo2.value.round()}% (at ${spo2.timestamp})" : "No data"}');
 
     final steps = await getStepsForDate(DateTime.now());
     print('Steps today: ${steps ?? "No data"}');

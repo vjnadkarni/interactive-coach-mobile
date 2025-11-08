@@ -38,11 +38,17 @@ dependencies:
   # Health data integration (HealthKit + Health Connect)
   health: ^13.2.0
 
+  # HealthKit observer queries for real-time notifications
+  health_kit_reporter: ^2.3.1
+
   # HTTP client for API calls to FastAPI backend
   http: ^1.2.1
 
   # Secure storage for JWT tokens and API keys
   flutter_secure_storage: ^9.2.2
+
+  # Supabase authentication and database
+  supabase_flutter: ^2.9.2
 
   # State management
   provider: ^6.1.2
