@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../services/api_service.dart';
 import '../services/tts_service.dart';
+import '../services/native_speech_service.dart';
 import 'health_dashboard_screen.dart';
 import 'avatar_screen.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 /// Voice + Text Chat Screen (No Avatar)
 ///
@@ -19,7 +20,7 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final ApiService _apiService = ApiService();
   final TTSService _ttsService = TTSService();
-  final stt.SpeechToText _speech = stt.SpeechToText();
+  final NativeSpeechService _nativeSpeech = NativeSpeechService();
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
@@ -30,8 +31,10 @@ class _ChatScreenState extends State<ChatScreen> {
   String _userId = 'default_user';
   int _selectedIndex = 1; // Chat tab selected by default
   List<Map<String, String>> _messages = [];
+  String _currentTranscript = '';
+  Timer? _silenceTimer;
 
-  // Mode toggle: false = Voice+Text, true = Video+Voice (coming soon)
+  // Mode toggle: false = Voice+Text, true = Video+Voice
   bool _videoMode = false;
 
   @override
@@ -44,17 +47,53 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void dispose() {
     _ttsService.dispose();
-    _speech.stop();
+    _silenceTimer?.cancel();
+    _nativeSpeech.dispose();
     super.dispose();
   }
 
   Future<void> _initSpeech() async {
-    _speechAvailable = await _speech.initialize(
-      onStatus: (status) => print('🎤 [ChatScreen] Speech status: $status'),
-      onError: (error) => print('❌ [ChatScreen] Speech error: $error'),
-    );
+    _speechAvailable = await _nativeSpeech.initialize();
+
+    // Listen to final transcripts
+    _nativeSpeech.finalTranscriptStream.listen((transcript) {
+      print('✅ [ChatScreen] Final transcript: "$transcript"');
+      _silenceTimer?.cancel();
+      _sendMessage(transcript);
+      _currentTranscript = '';
+      _stopListening();
+    });
+
+    // Listen to interim transcripts
+    _nativeSpeech.transcriptStream.listen((transcript) {
+      print('📝 [ChatScreen] Interim transcript: "$transcript"');
+      setState(() {
+        _currentTranscript = transcript;
+      });
+      _resetSilenceTimer();
+    });
+
+    // Listen to errors
+    _nativeSpeech.errorStream.listen((error) {
+      print('❌ [ChatScreen] Speech error: $error');
+      _addMessage('error', 'Speech recognition error: $error');
+      _stopListening();
+    });
+
     setState(() {});
-    print('🎤 [ChatScreen] Speech available: $_speechAvailable');
+    print('🎤 [ChatScreen] Native speech available: $_speechAvailable');
+  }
+
+  void _resetSilenceTimer() {
+    _silenceTimer?.cancel();
+    _silenceTimer = Timer(const Duration(seconds: 3), () {
+      if (_currentTranscript.isNotEmpty) {
+        print('⏱️ [ChatScreen] Silence timeout - sending: "$_currentTranscript"');
+        _sendMessage(_currentTranscript);
+        _currentTranscript = '';
+        _stopListening();
+      }
+    });
   }
 
   void _addMessage(String role, String content) {
@@ -163,50 +202,27 @@ class _ChatScreenState extends State<ChatScreen> {
       return;
     }
 
-    print('🎤 [ChatScreen] Starting iOS native speech recognition...');
+    print('🎤 [ChatScreen] Starting native iOS speech recognition with enhanced punctuation...');
 
     setState(() {
       _isListening = true;
+      _currentTranscript = '';
     });
 
-    // Start listening with iOS native speech recognition
-    // It has automatic punctuation and capitalization built-in!
-    await _speech.listen(
-      onResult: (result) {
-        print('📝 [ChatScreen] Speech result: "${result.recognizedWords}" (final: ${result.finalResult})');
+    await _nativeSpeech.startListening();
 
-        if (result.finalResult) {
-          // iOS automatically includes punctuation and capitalization!
-          final transcript = result.recognizedWords;
-          print('✅ [ChatScreen] Final transcript with iOS punctuation: "$transcript"');
-
-          // Send the transcript
-          _sendMessage(transcript);
-
-          // Stop listening
-          _stopListening();
-        }
-      },
-      listenFor: const Duration(seconds: 30),
-      pauseFor: const Duration(seconds: 3),
-      partialResults: true,
-      onSoundLevelChange: null,
-      cancelOnError: true,
-      localeId: 'en_US',
-      listenMode: stt.ListenMode.dictation, // Dictation mode provides better punctuation
-    );
-
-    print('✅ [ChatScreen] iOS speech listening started');
+    print('✅ [ChatScreen] Native speech listening started');
   }
 
   void _stopListening() async {
-    await _speech.stop();
+    await _nativeSpeech.stopListening();
+    _silenceTimer?.cancel();
 
     setState(() {
       _isListening = false;
     });
 
-    print('🛑 [ChatScreen] iOS speech stopped');
+    print('🛑 [ChatScreen] Native speech stopped');
   }
 
   void _onNavItemTapped(int index) {
@@ -306,6 +322,34 @@ class _ChatScreenState extends State<ChatScreen> {
             const Padding(
               padding: EdgeInsets.all(8.0),
               child: CircularProgressIndicator(),
+            ),
+
+          // Interim transcript display (while listening)
+          if (_isListening && _currentTranscript.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue.shade300),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.mic, color: Colors.red, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _currentTranscript,
+                      style: const TextStyle(
+                        color: Colors.black87,
+                        fontSize: 14,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
 
           // Input area

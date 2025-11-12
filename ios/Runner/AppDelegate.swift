@@ -8,6 +8,11 @@ import UIKit
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     GeneratedPluginRegistrant.register(with: self)
+
+    // Register native speech recognizer plugin
+    let controller = window?.rootViewController as! FlutterViewController
+    NativeSpeechRecognizer.register(with: registrar(forPlugin: "NativeSpeechRecognizer")!)
+
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 }
