@@ -7,6 +7,8 @@ import '../services/health_sync_service.dart';
 import '../services/health_service.dart';
 import '../services/health_observer_service.dart';
 import '../services/auth_service.dart';
+import '../models/body_composition.dart';
+import '../widgets/body_composition_card.dart';
 import 'chat_screen.dart';
 
 /// Health Dashboard Screen
@@ -279,6 +281,13 @@ class _HealthDashboardScreenState extends State<HealthDashboardScreen> {
 
                         // Activity Card
                         _buildActivityCard(),
+                        const SizedBox(height: 16),
+
+                        // Body Composition Card (third card - below Vitals and Activity)
+                        BodyCompositionCard(
+                          measurement: BodyComposition.mock(),
+                          isLoading: false,
+                        ),
                         const SizedBox(height: 16),
 
                         // Info Card

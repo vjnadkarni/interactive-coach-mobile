@@ -5,6 +5,7 @@ import '../services/api_service.dart';
 import '../utils/constants.dart';
 import 'health_test_screen.dart';
 import 'health_dashboard_screen.dart';
+import 'chat_screen.dart';
 
 class AvatarScreen extends StatefulWidget {
   const AvatarScreen({super.key});
@@ -32,7 +33,7 @@ class _AvatarScreenState extends State<AvatarScreen> {
     super.initState();
     _initSpeech();
     _initWebView();
-    _addMessage('assistant', 'Hi! I\'m Elenora, your health and wellness coach. How can I help you today?');
+    _addMessage('assistant', 'Hi! I\'m Hera, your health and wellness coach. How can I help you today?');
   }
 
   Future<void> _initSpeech() async {
@@ -188,7 +189,7 @@ class _AvatarScreenState extends State<AvatarScreen> {
         }
       });
 
-      // Send to WebView to make Elenora speak
+      // Send to WebView to make Hera speak
       if (_isWebViewReady && fullResponse.isNotEmpty) {
         _sendToWebView('speak', fullResponse);
         setState(() => _avatarStatus = 'Speaking');
@@ -216,12 +217,19 @@ class _AvatarScreenState extends State<AvatarScreen> {
         await _speech.listen(
           onResult: (result) {
             if (result.finalResult) {
-              _textController.text = result.recognizedWords;
-              _sendMessage(result.recognizedWords);
+              // iOS automatically includes punctuation and capitalization!
+              final transcript = result.recognizedWords;
+              print('✅ [AvatarScreen] Final transcript: "$transcript"');
+              _textController.text = transcript;
+              _sendMessage(transcript);
             }
           },
           listenFor: const Duration(seconds: 30),
           pauseFor: const Duration(seconds: 3),
+          partialResults: true,
+          cancelOnError: true,
+          localeId: 'en_US',
+          listenMode: stt.ListenMode.dictation, // Dictation mode provides better punctuation
         );
       }
     }
@@ -231,9 +239,33 @@ class _AvatarScreenState extends State<AvatarScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Elenora - Your Health Coach'),
+        title: const Text('Hera - Your Health Coach'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
+          // Mode Toggle Switch (Video + Voice)
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: Row(
+              children: [
+                const Text(
+                  'Video',
+                  style: TextStyle(fontSize: 12),
+                ),
+                Switch(
+                  value: true, // Always true in Video mode
+                  onChanged: (value) {
+                    if (!value) {
+                      // Navigate back to Chat Screen (Voice-Only mode)
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(builder: (context) => const ChatScreen()),
+                      );
+                    }
+                  },
+                  activeColor: Colors.white,
+                ),
+              ],
+            ),
+          ),
           // Dashboard button
           IconButton(
             icon: const Icon(Icons.dashboard),
@@ -399,6 +431,9 @@ class _AvatarScreenState extends State<AvatarScreen> {
 
   @override
   void dispose() {
+    // Stop HeyGen avatar session
+    _sendToWebView('stop', '');
+
     _textController.dispose();
     _scrollController.dispose();
     _speech.stop();

@@ -65,6 +65,7 @@ class ApiService {
             final data = json.decode(jsonStr);
             print('✅ [ApiService] Parsed data: $data');
 
+            // Backend sends 'text' field for streaming text chunks
             if (data['text'] != null) {
               print('📤 [ApiService] Yielding text: "${data['text']}"');
               yield data['text'] as String;

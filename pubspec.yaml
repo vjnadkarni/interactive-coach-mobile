@@ -56,11 +56,14 @@ dependencies:
   # Video player for HeyGen avatar
   video_player: ^2.9.1
 
-  # Web socket for real-time streaming
-  web_socket_channel: ^3.0.1
+  # Web socket for real-time streaming (Deepgram - temporarily disabled)
+  # web_socket_channel: ^3.0.1
 
-  # Speech recognition (Deepgram integration)
+  # Speech recognition (using native iOS for now)
   speech_to_text: ^7.0.0
+
+  # Audio recording for Deepgram streaming (temporarily disabled due to version conflict)
+  # record: 5.0.0
 
   # Audio playback for TTS
   just_audio: ^0.9.40

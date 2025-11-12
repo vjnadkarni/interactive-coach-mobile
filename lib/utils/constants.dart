@@ -9,7 +9,7 @@ class AppConstants {
   static String get elevenLabsVoiceId => dotenv.env['ELEVENLABS_VOICE_ID'] ?? '21m00Tcm4TlvDq8ikWAM';
 
   // HeyGen Avatar Configuration
-  static const String avatarId = 'Elenora_FitnessCoach2_public';
+  static const String avatarId = 'Marianne_Chair_Sitting_public';
   static const String avatarQuality = 'high';
 
   // Session Configuration

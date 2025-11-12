@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../services/api_service.dart';
 import '../services/tts_service.dart';
 import 'health_dashboard_screen.dart';
+import 'avatar_screen.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 /// Voice + Text Chat Screen (No Avatar)
 ///
@@ -25,6 +26,7 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isListening = false;
   bool _isLoading = false;
   bool _isSpeaking = false;
+  bool _speechAvailable = false;
   String _userId = 'default_user';
   int _selectedIndex = 1; // Chat tab selected by default
   List<Map<String, String>> _messages = [];
@@ -42,21 +44,17 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void dispose() {
     _ttsService.dispose();
-    _speech.cancel();
+    _speech.stop();
     super.dispose();
   }
 
   Future<void> _initSpeech() async {
-    bool available = await _speech.initialize(
-      onStatus: (status) => print('Speech status: $status'),
-      onError: (error) => print('Speech error: $error'),
+    _speechAvailable = await _speech.initialize(
+      onStatus: (status) => print('🎤 [ChatScreen] Speech status: $status'),
+      onError: (error) => print('❌ [ChatScreen] Speech error: $error'),
     );
-
-    if (available) {
-      print('✅ Speech recognition initialized');
-    } else {
-      print('❌ Speech recognition not available');
-    }
+    setState(() {});
+    print('🎤 [ChatScreen] Speech available: $_speechAvailable');
   }
 
   void _addMessage(String role, String content) {
@@ -159,60 +157,56 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _startListening() async {
-    print('🎤 [ChatScreen] Starting voice input...');
-
-    if (!_speech.isAvailable) {
-      print('❌ [ChatScreen] Speech recognition not available');
-      _addMessage('error', 'Speech recognition not available. Please check microphone permissions.');
+    if (!_speechAvailable) {
+      print('❌ [ChatScreen] Speech not available');
+      _addMessage('error', 'Speech recognition not available on this device');
       return;
     }
 
-    print('✅ [ChatScreen] Speech recognition available');
+    print('🎤 [ChatScreen] Starting iOS native speech recognition...');
 
     setState(() {
       _isListening = true;
     });
 
-    print('🎤 [ChatScreen] Starting to listen...');
+    // Start listening with iOS native speech recognition
+    // It has automatic punctuation and capitalization built-in!
+    await _speech.listen(
+      onResult: (result) {
+        print('📝 [ChatScreen] Speech result: "${result.recognizedWords}" (final: ${result.finalResult})');
 
-    try {
-      await _speech.listen(
-        onResult: (result) {
-          print('🎤 [ChatScreen] Got result - Final: ${result.finalResult}, Text: "${result.recognizedWords}"');
+        if (result.finalResult) {
+          // iOS automatically includes punctuation and capitalization!
+          final transcript = result.recognizedWords;
+          print('✅ [ChatScreen] Final transcript with iOS punctuation: "$transcript"');
 
-          if (result.finalResult) {
-            final recognizedText = result.recognizedWords;
-            print('✅ [ChatScreen] Final recognized text: "$recognizedText"');
+          // Send the transcript
+          _sendMessage(transcript);
 
-            // Send the recognized text
-            _sendMessage(recognizedText);
+          // Stop listening
+          _stopListening();
+        }
+      },
+      listenFor: const Duration(seconds: 30),
+      pauseFor: const Duration(seconds: 3),
+      partialResults: true,
+      onSoundLevelChange: null,
+      cancelOnError: true,
+      localeId: 'en_US',
+      listenMode: stt.ListenMode.dictation, // Dictation mode provides better punctuation
+    );
 
-            // Stop listening after final result
-            _stopListening();
-          } else {
-            print('🎤 [ChatScreen] Partial result: "${result.recognizedWords}"');
-          }
-        },
-        listenFor: const Duration(seconds: 30),
-        pauseFor: const Duration(seconds: 3),
-        partialResults: true,
-        cancelOnError: true,
-        listenMode: stt.ListenMode.confirmation,
-      );
-
-      print('🎤 [ChatScreen] Listen method called');
-    } catch (e) {
-      print('❌ [ChatScreen] Speech error: $e');
-      _addMessage('error', 'Speech error: $e');
-      _stopListening();
-    }
+    print('✅ [ChatScreen] iOS speech listening started');
   }
 
   void _stopListening() async {
     await _speech.stop();
+
     setState(() {
       _isListening = false;
     });
+
+    print('🛑 [ChatScreen] iOS speech stopped');
   }
 
   void _onNavItemTapped(int index) {
@@ -251,21 +245,9 @@ class _ChatScreenState extends State<ChatScreen> {
                   value: _videoMode,
                   onChanged: (value) {
                     if (value) {
-                      // Show "Coming Soon" dialog
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('Video + Voice Mode'),
-                          content: const Text(
-                            'Video avatar coming soon!\n\nFor now, use Voice + Text mode to chat with Hera.',
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text('OK'),
-                            ),
-                          ],
-                        ),
+                      // Navigate to Avatar Screen (Video + Voice mode)
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(builder: (context) => const AvatarScreen()),
                       );
                     }
                   },

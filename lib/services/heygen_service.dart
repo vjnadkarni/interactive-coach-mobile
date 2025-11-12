@@ -143,7 +143,7 @@ class HeyGenService {
     }
   }
 
-  // Send text to avatar (make Elenora speak)
+  // Send text to avatar (make Hera speak)
   Future<void> speak(String text) async {
     if (!_isConnected || _channel == null) {
       print('❌ Cannot speak: Not connected');
@@ -154,7 +154,7 @@ class HeyGenService {
       // Remove emojis from text (sounds awkward when spoken)
       final cleanText = _removeEmojis(text);
 
-      print('🗣️ Elenora speaking: $cleanText');
+      print('🗣️ Hera speaking: $cleanText');
 
       _channel!.sink.add(json.encode({
         'type': 'repeat',

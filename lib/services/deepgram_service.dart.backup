@@ -1,0 +1,213 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:record/record.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+/// Deepgram STT Service
+///
+/// Provides real-time speech-to-text transcription with:
+/// - Automatic punctuation
+/// - Automatic capitalization
+/// - Smart formatting
+/// - Real-time streaming results
+///
+/// Uses Deepgram's WebSocket API with Nova-2 model
+class DeepgramService {
+  WebSocketChannel? _channel;
+  final AudioRecorder _recorder = AudioRecorder();
+  StreamController<String>? _transcriptController;
+  StreamSubscription<Uint8List>? _audioSubscription;
+  bool _isListening = false;
+  String _currentTranscript = '';
+
+  // Deepgram API key from environment
+  String get _apiKey => dotenv.env['DEEPGRAM_API_KEY'] ?? '';
+
+  bool get isListening => _isListening;
+
+  /// Start listening and transcribing
+  Future<Stream<String>> startListening() async {
+    if (_isListening) {
+      print('⚠️ [DeepgramService] Already listening');
+      return _transcriptController!.stream;
+    }
+
+    print('🎤 [DeepgramService] Starting Deepgram STT with punctuation...');
+
+    // Create new transcript stream
+    _transcriptController = StreamController<String>.broadcast();
+
+    try {
+      // Check microphone permission
+      if (!await _recorder.hasPermission()) {
+        print('❌ [DeepgramService] Microphone permission denied');
+        throw Exception('Microphone permission not granted');
+      }
+
+      // Check API key
+      if (_apiKey.isEmpty) {
+        throw Exception('Deepgram API key not configured');
+      }
+
+      // Build Deepgram WebSocket URL with configuration
+      final wsUrl = Uri.parse(
+        'wss://api.deepgram.com/v1/listen?'
+        'model=nova-2&'
+        'language=en-US&'
+        'smart_format=true&'           // Enable smart formatting
+        'punctuate=true&'                // Enable automatic punctuation
+        'interim_results=true&'          // Get partial results
+        'endpointing=3500&'              // 3.5 second silence timeout
+        'encoding=linear16&'             // PCM audio format
+        'sample_rate=16000&'             // 16kHz sample rate
+        'channels=1',                    // Mono audio
+      );
+
+      print('🔗 [DeepgramService] Connecting to Deepgram WebSocket...');
+
+      // Connect to Deepgram WebSocket with auth header
+      _channel = WebSocketChannel.connect(
+        wsUrl,
+        protocols: ['token', _apiKey],  // Auth via protocol header
+      );
+
+      // Listen for transcription results
+      _channel!.stream.listen(
+        (message) {
+          try {
+            final data = json.decode(message);
+
+            // Extract transcript from response
+            if (data['type'] == 'Results') {
+              final transcript = data['channel']?['alternatives']?[0]?['transcript'] as String?;
+              final isFinal = data['is_final'] as bool? ?? false;
+
+              if (transcript != null && transcript.isNotEmpty) {
+                print('📝 [DeepgramService] ${isFinal ? "Final" : "Interim"}: "$transcript"');
+
+                // Only emit final transcripts (with punctuation)
+                if (isFinal) {
+                  _currentTranscript = transcript;
+                  _transcriptController?.add(transcript);
+                }
+              }
+            }
+          } catch (e) {
+            print('❌ [DeepgramService] Error parsing message: $e');
+          }
+        },
+        onError: (error) {
+          print('❌ [DeepgramService] WebSocket error: $error');
+          _transcriptController?.addError(error);
+        },
+        onDone: () {
+          print('✅ [DeepgramService] WebSocket closed');
+          stopListening();
+        },
+      );
+
+      // Start audio recording and streaming
+      await _startAudioStream();
+
+      _isListening = true;
+      print('✅ [DeepgramService] Deepgram STT started successfully');
+
+      return _transcriptController!.stream;
+
+    } catch (e) {
+      print('❌ [DeepgramService] Failed to start listening: $e');
+      await stopListening();
+      rethrow;
+    }
+  }
+
+  /// Start recording audio and stream to Deepgram
+  Future<void> _startAudioStream() async {
+    try {
+      // Configure audio recording
+      const config = RecordConfig(
+        encoder: AudioEncoder.pcm16bits,  // Linear PCM 16-bit
+        sampleRate: 16000,                 // 16kHz
+        numChannels: 1,                    // Mono
+        autoGain: true,                    // Auto gain control
+        echoCancel: true,                  // Echo cancellation
+        noiseSuppress: true,               // Noise suppression
+      );
+
+      // Start recording stream
+      final stream = await _recorder.startStream(config);
+
+      print('🎙️ [DeepgramService] Audio streaming started (16kHz, mono, PCM16)');
+
+      // Stream audio chunks to Deepgram
+      _audioSubscription = stream.listen(
+        (audioChunk) {
+          if (_channel != null) {
+            // Send raw PCM audio to Deepgram
+            _channel!.sink.add(audioChunk);
+          }
+        },
+        onError: (error) {
+          print('❌ [DeepgramService] Audio stream error: $error');
+        },
+        onDone: () {
+          print('✅ [DeepgramService] Audio stream ended');
+        },
+      );
+
+    } catch (e) {
+      print('❌ [DeepgramService] Failed to start audio streaming: $e');
+      rethrow;
+    }
+  }
+
+  /// Stop listening
+  Future<void> stopListening() async {
+    if (!_isListening) return;
+
+    print('🛑 [DeepgramService] Stopping Deepgram STT...');
+
+    _isListening = false;
+
+    // Cancel audio subscription
+    await _audioSubscription?.cancel();
+    _audioSubscription = null;
+
+    // Stop recording
+    try {
+      await _recorder.stop();
+      print('✅ [DeepgramService] Audio recording stopped');
+    } catch (e) {
+      print('⚠️ [DeepgramService] Error stopping recorder: $e');
+    }
+
+    // Close WebSocket
+    try {
+      await _channel?.sink.close();
+      _channel = null;
+      print('✅ [DeepgramService] WebSocket closed');
+    } catch (e) {
+      print('⚠️ [DeepgramService] Error closing WebSocket: $e');
+    }
+
+    // Close transcript stream
+    await _transcriptController?.close();
+    _transcriptController = null;
+
+    print('✅ [DeepgramService] Deepgram STT stopped successfully');
+  }
+
+  /// Get the current transcript
+  String getCurrentTranscript() {
+    return _currentTranscript;
+  }
+
+  /// Dispose service
+  Future<void> dispose() async {
+    await stopListening();
+    _recorder.dispose();
+  }
+}
