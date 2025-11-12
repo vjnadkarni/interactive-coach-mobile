@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../services/api_service.dart';
 import '../services/tts_service.dart';
+import '../services/deepgram_service.dart';
 import 'health_dashboard_screen.dart';
 import 'avatar_screen.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 /// Voice + Text Chat Screen (No Avatar)
 ///
 /// Provides text and voice input for chatting with Hera
 /// without the video avatar (WebView) component.
+/// Uses Deepgram STT for excellent punctuation support.
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
 
@@ -19,42 +21,90 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final ApiService _apiService = ApiService();
   final TTSService _ttsService = TTSService();
-  final stt.SpeechToText _speech = stt.SpeechToText();
+  final DeepgramService _deepgramService = DeepgramService();
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
   bool _isListening = false;
   bool _isLoading = false;
   bool _isSpeaking = false;
-  bool _speechAvailable = false;
+  bool _deepgramAvailable = false;
   String _userId = 'default_user';
   int _selectedIndex = 1; // Chat tab selected by default
   List<Map<String, String>> _messages = [];
+  String _currentTranscript = '';
+  Timer? _silenceTimer;
 
-  // Mode toggle: false = Voice+Text, true = Video+Voice (coming soon)
+  // Mode toggle: false = Voice+Text, true = Video+Voice
   bool _videoMode = false;
 
   @override
   void initState() {
     super.initState();
-    _initSpeech();
+    _initDeepgram();
     _addMessage('assistant', 'Hi! I\'m Hera, your health and wellness coach. How can I help you today?');
   }
 
   @override
   void dispose() {
     _ttsService.dispose();
-    _speech.stop();
+    _silenceTimer?.cancel();
+    _deepgramService.dispose();
     super.dispose();
   }
 
-  Future<void> _initSpeech() async {
-    _speechAvailable = await _speech.initialize(
-      onStatus: (status) => print('🎤 [ChatScreen] Speech status: $status'),
-      onError: (error) => print('❌ [ChatScreen] Speech error: $error'),
-    );
-    setState(() {});
-    print('🎤 [ChatScreen] Speech available: $_speechAvailable');
+  Future<void> _initDeepgram() async {
+    try {
+      await _deepgramService.connect();
+
+      // Listen to final transcripts from Deepgram
+      _deepgramService.finalTranscriptStream.listen((transcript) {
+        print('✅ [ChatScreen] Final Deepgram transcript: "$transcript"');
+
+        // Cancel silence timer since we got a final result
+        _silenceTimer?.cancel();
+
+        // Send the transcript
+        _sendMessage(transcript);
+
+        // Reset and continue listening
+        _currentTranscript = '';
+      });
+
+      // Listen to interim transcripts for display
+      _deepgramService.transcriptStream.listen((transcript) {
+        print('📝 [ChatScreen] Interim Deepgram transcript: "$transcript"');
+        setState(() {
+          _currentTranscript = transcript;
+        });
+
+        // Reset silence timer on new interim result
+        _resetSilenceTimer();
+      });
+
+      setState(() {
+        _deepgramAvailable = true;
+      });
+      print('✅ [ChatScreen] Deepgram initialized successfully');
+    } catch (e) {
+      print('❌ [ChatScreen] Failed to initialize Deepgram: $e');
+      setState(() {
+        _deepgramAvailable = false;
+      });
+    }
+  }
+
+  void _resetSilenceTimer() {
+    _silenceTimer?.cancel();
+    _silenceTimer = Timer(const Duration(seconds: 3), () {
+      // If we have a transcript after 3 seconds of silence, send it
+      if (_currentTranscript.isNotEmpty) {
+        print('⏱️ [ChatScreen] Silence timeout - sending transcript: "$_currentTranscript"');
+        _sendMessage(_currentTranscript);
+        _currentTranscript = '';
+        _stopListening();
+      }
+    });
   }
 
   void _addMessage(String role, String content) {
@@ -157,56 +207,34 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _startListening() async {
-    if (!_speechAvailable) {
-      print('❌ [ChatScreen] Speech not available');
-      _addMessage('error', 'Speech recognition not available on this device');
+    if (!_deepgramAvailable) {
+      print('❌ [ChatScreen] Deepgram not available');
+      _addMessage('error', 'Speech recognition not available. Please check your connection.');
       return;
     }
 
-    print('🎤 [ChatScreen] Starting iOS native speech recognition...');
+    print('🎤 [ChatScreen] Starting Deepgram speech recognition...');
 
     setState(() {
       _isListening = true;
+      _currentTranscript = '';
     });
 
-    // Start listening with iOS native speech recognition
-    // It has automatic punctuation and capitalization built-in!
-    await _speech.listen(
-      onResult: (result) {
-        print('📝 [ChatScreen] Speech result: "${result.recognizedWords}" (final: ${result.finalResult})');
+    // Start recording and streaming to Deepgram
+    await _deepgramService.startRecording();
 
-        if (result.finalResult) {
-          // iOS automatically includes punctuation and capitalization!
-          final transcript = result.recognizedWords;
-          print('✅ [ChatScreen] Final transcript with iOS punctuation: "$transcript"');
-
-          // Send the transcript
-          _sendMessage(transcript);
-
-          // Stop listening
-          _stopListening();
-        }
-      },
-      listenFor: const Duration(seconds: 30),
-      pauseFor: const Duration(seconds: 3),
-      partialResults: true,
-      onSoundLevelChange: null,
-      cancelOnError: true,
-      localeId: 'en_US',
-      listenMode: stt.ListenMode.dictation, // Dictation mode provides better punctuation
-    );
-
-    print('✅ [ChatScreen] iOS speech listening started');
+    print('✅ [ChatScreen] Deepgram listening started');
   }
 
   void _stopListening() async {
-    await _speech.stop();
+    await _deepgramService.stopRecording();
+    _silenceTimer?.cancel();
 
     setState(() {
       _isListening = false;
     });
 
-    print('🛑 [ChatScreen] iOS speech stopped');
+    print('🛑 [ChatScreen] Deepgram stopped');
   }
 
   void _onNavItemTapped(int index) {
@@ -306,6 +334,34 @@ class _ChatScreenState extends State<ChatScreen> {
             const Padding(
               padding: EdgeInsets.all(8.0),
               child: CircularProgressIndicator(),
+            ),
+
+          // Interim transcript display (while listening)
+          if (_isListening && _currentTranscript.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue.shade300),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.mic, color: Colors.red, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _currentTranscript,
+                      style: const TextStyle(
+                        color: Colors.black87,
+                        fontSize: 14,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
 
           // Input area
