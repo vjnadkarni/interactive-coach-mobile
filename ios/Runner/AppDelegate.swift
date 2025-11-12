@@ -10,8 +10,9 @@ import UIKit
     GeneratedPluginRegistrant.register(with: self)
 
     // Register native speech recognizer plugin
-    let controller = window?.rootViewController as! FlutterViewController
-    NativeSpeechRecognizer.register(with: registrar(forPlugin: "NativeSpeechRecognizer")!)
+    if let registrar = self.registrar(forPlugin: "NativeSpeechRecognizer") {
+      NativeSpeechRecognizer.register(with: registrar)
+    }
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
