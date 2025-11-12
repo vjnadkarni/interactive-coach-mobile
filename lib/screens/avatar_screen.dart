@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'dart:async';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../services/api_service.dart';
+import '../services/deepgram_service.dart';
 import '../utils/constants.dart';
 import 'health_test_screen.dart';
 import 'health_dashboard_screen.dart';
@@ -16,7 +17,7 @@ class AvatarScreen extends StatefulWidget {
 
 class _AvatarScreenState extends State<AvatarScreen> {
   final ApiService _apiService = ApiService();
-  final stt.SpeechToText _speech = stt.SpeechToText();
+  final DeepgramService _deepgramService = DeepgramService();
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
@@ -24,29 +25,75 @@ class _AvatarScreenState extends State<AvatarScreen> {
   bool _isListening = false;
   bool _isLoading = false;
   bool _isWebViewReady = false;
+  bool _deepgramAvailable = false;
   String _userId = 'default_user';
   String _avatarStatus = 'Loading...';
+  String _currentTranscript = '';
+  Timer? _silenceTimer;
   List<Map<String, String>> _messages = [];
 
   @override
   void initState() {
     super.initState();
-    _initSpeech();
+    _initDeepgram();
     _initWebView();
     _addMessage('assistant', 'Hi! I\'m Hera, your health and wellness coach. How can I help you today?');
   }
 
-  Future<void> _initSpeech() async {
-    bool available = await _speech.initialize(
-      onStatus: (status) => print('Speech status: $status'),
-      onError: (error) => print('Speech error: $error'),
-    );
+  Future<void> _initDeepgram() async {
+    try {
+      await _deepgramService.connect();
 
-    if (available) {
-      print('✅ Speech recognition initialized');
-    } else {
-      print('❌ Speech recognition not available');
+      // Listen to final transcripts from Deepgram
+      _deepgramService.finalTranscriptStream.listen((transcript) {
+        print('✅ [AvatarScreen] Final Deepgram transcript: "$transcript"');
+
+        // Cancel silence timer since we got a final result
+        _silenceTimer?.cancel();
+
+        // Send the transcript
+        _textController.text = transcript;
+        _sendMessage(transcript);
+
+        // Reset
+        _currentTranscript = '';
+      });
+
+      // Listen to interim transcripts for display
+      _deepgramService.transcriptStream.listen((transcript) {
+        print('📝 [AvatarScreen] Interim Deepgram transcript: "$transcript"');
+        setState(() {
+          _currentTranscript = transcript;
+        });
+
+        // Reset silence timer on new interim result
+        _resetSilenceTimer();
+      });
+
+      setState(() {
+        _deepgramAvailable = true;
+      });
+      print('✅ [AvatarScreen] Deepgram initialized successfully');
+    } catch (e) {
+      print('❌ [AvatarScreen] Failed to initialize Deepgram: $e');
+      setState(() {
+        _deepgramAvailable = false;
+      });
     }
+  }
+
+  void _resetSilenceTimer() {
+    _silenceTimer?.cancel();
+    _silenceTimer = Timer(const Duration(seconds: 3), () {
+      // If we have a transcript after 3 seconds of silence, send it
+      if (_currentTranscript.isNotEmpty) {
+        print('⏱️ [AvatarScreen] Silence timeout - sending transcript: "$_currentTranscript"');
+        _textController.text = _currentTranscript;
+        _sendMessage(_currentTranscript);
+        _currentTranscript = '';
+        _stopListening();
+      }
+    });
   }
 
   void _initWebView() {
@@ -207,32 +254,43 @@ class _AvatarScreenState extends State<AvatarScreen> {
 
   Future<void> _toggleListening() async {
     if (_isListening) {
-      await _speech.stop();
-      setState(() => _isListening = false);
+      await _stopListening();
     } else {
-      bool available = await _speech.initialize();
-      if (available) {
-        setState(() => _isListening = true);
-
-        await _speech.listen(
-          onResult: (result) {
-            if (result.finalResult) {
-              // iOS automatically includes punctuation and capitalization!
-              final transcript = result.recognizedWords;
-              print('✅ [AvatarScreen] Final transcript: "$transcript"');
-              _textController.text = transcript;
-              _sendMessage(transcript);
-            }
-          },
-          listenFor: const Duration(seconds: 30),
-          pauseFor: const Duration(seconds: 3),
-          partialResults: true,
-          cancelOnError: true,
-          localeId: 'en_US',
-          listenMode: stt.ListenMode.dictation, // Dictation mode provides better punctuation
-        );
-      }
+      await _startListening();
     }
+  }
+
+  Future<void> _startListening() async {
+    if (!_deepgramAvailable) {
+      print('❌ [AvatarScreen] Deepgram not available');
+      _addMessage('error', 'Speech recognition not available. Please check your connection.');
+      return;
+    }
+
+    print('🎤 [AvatarScreen] Starting Deepgram speech recognition...');
+
+    setState(() {
+      _isListening = true;
+      _currentTranscript = '';
+      _avatarStatus = 'Listening';
+    });
+
+    // Start recording and streaming to Deepgram
+    await _deepgramService.startRecording();
+
+    print('✅ [AvatarScreen] Deepgram listening started');
+  }
+
+  Future<void> _stopListening() async {
+    await _deepgramService.stopRecording();
+    _silenceTimer?.cancel();
+
+    setState(() {
+      _isListening = false;
+      _avatarStatus = 'Ready';
+    });
+
+    print('🛑 [AvatarScreen] Deepgram stopped');
   }
 
   @override
@@ -434,9 +492,10 @@ class _AvatarScreenState extends State<AvatarScreen> {
     // Stop HeyGen avatar session
     _sendToWebView('stop', '');
 
+    _silenceTimer?.cancel();
+    _deepgramService.dispose();
     _textController.dispose();
     _scrollController.dispose();
-    _speech.stop();
     super.dispose();
   }
 }
