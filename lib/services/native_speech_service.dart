@@ -43,6 +43,14 @@ class NativeSpeechService {
 
       case 'onError':
         final String error = call.arguments as String;
+
+        // Filter out "canceled" errors - these are expected when stopping
+        if (error.toLowerCase().contains('canceled') || error.toLowerCase().contains('cancelled')) {
+          print('ℹ️ [NativeSpeech] Recognition canceled (expected)');
+          _isListening = false;
+          return;
+        }
+
         print('❌ [NativeSpeech] Error: $error');
         _errorController.add(error);
         _isListening = false;

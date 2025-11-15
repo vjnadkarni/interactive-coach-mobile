@@ -623,6 +623,67 @@ cd ..
 
 ---
 
+## 🎥 **Video+Voice Mode Status**
+
+**Current Status**: Native iOS implementation blocked - WebView approach recommended
+
+### **Problem Summary**
+Attempted native iOS implementation of HeyGen Interactive Avatar using LiveKit SDK:
+- ✅ LiveKit connection successful
+- ✅ Voice-Only mode working perfectly (native Flutter + ElevenLabs)
+- ✅ Speech recognition working perfectly (native iOS Speech framework)
+- ✅ Backend conversation flow working perfectly
+- ❌ HeyGen avatar never joins LiveKit room (participant count stays 0)
+- ❌ Missing WebRTC signaling to HeyGen's signaling server
+- ❌ No video rendering, no audio playback
+
+### **Root Cause**
+HeyGen Streaming Avatar v1 requires:
+1. Call `/v1/streaming.new` API ✅
+2. Connect to LiveKit room ✅
+3. **Connect to WebRTC signaling server** ❌ (missing)
+4. Exchange SDP offers/answers ❌ (missing)
+5. Avatar joins as remote participant ❌ (never happens)
+
+The web version uses HeyGen's JavaScript SDK (`@heygen/streaming-avatar`) which handles all this automatically. Native implementation requires hundreds of lines of complex WebRTC signaling code.
+
+### **Recommended Solution: WebView Approach**
+Instead of rebuilding the entire HeyGen SDK in native Swift:
+1. Keep Voice-Only mode as native Flutter (current - works great!)
+2. Embed working Next.js web page in WebView for Video+Voice mode
+3. Use JavaScript bridge for Flutter ↔ Web communication
+4. Reuse battle-tested web implementation
+
+**Advantages**:
+- Works immediately (web version already proven)
+- Easy to maintain (one codebase for web + mobile)
+- No complex WebRTC code to debug
+- 1-2 hours implementation vs days of debugging
+
+**Files Modified in Native Attempt**:
+- `ios/Runner/HeyGen/` - Complete Swift implementation (blocked)
+- `lib/screens/avatar_screen_native.dart` - Native Flutter screen
+- LiveKit Swift SDK integrated via SPM
+
+**Documentation**:
+- `HEYGEN_NATIVE_STATUS.md` - Complete analysis and WebView implementation plan
+- `HEYGEN_NATIVE_IMPLEMENTATION_SUMMARY.md` - Technical details
+- `VIDEO_VOICE_DEBUGGING_SESSION.md` - Debugging session notes
+
+**Decision Point**: Proceed with WebView approach or wait for HeyGen native SDK v2
+
+---
+
+- **v0.5.0** - Native HeyGen Investigation (Nov 15, 2025) ⚠️
+  - Attempted native iOS HeyGen Interactive Avatar implementation
+  - LiveKit Swift SDK 2.10.0 integrated successfully
+  - Voice-Only mode remains fully functional (native Flutter + ElevenLabs)
+  - Identified blocker: Missing WebRTC signaling to HeyGen's server
+  - WebView approach recommended for Video+Voice mode
+  - Status: Native blocked, awaiting decision on WebView vs SDK v2
+
+---
+
 ## Contact
 
 For questions about AI implementation or architecture decisions, refer to this document first. The project aims to create a production-ready health coaching platform with emphasis on realistic human-like interactions and personalized health guidance.

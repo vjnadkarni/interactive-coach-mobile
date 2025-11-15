@@ -5,6 +5,7 @@ import '../services/tts_service.dart';
 import '../services/native_speech_service.dart';
 import 'health_dashboard_screen.dart';
 import 'avatar_screen.dart';
+import 'avatar_screen_native.dart';
 
 /// Voice + Text Chat Screen (No Avatar)
 ///
@@ -244,27 +245,74 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Chat with Hera'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Chat with Hera', style: TextStyle(fontSize: 18)),
+            const SizedBox(height: 2),
+            const Text(
+              'Voice-Only Mode (Recommended)',
+              style: TextStyle(fontSize: 11, color: Colors.white70, fontWeight: FontWeight.normal),
+            ),
+          ],
+        ),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
         actions: [
-          // Mode Toggle Switch
+          // Info button explaining Voice-Only mode
+          IconButton(
+            icon: const Icon(Icons.info_outline, size: 20),
+            tooltip: 'About Voice-Only Mode',
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (BuildContext context) {
+                  return AlertDialog(
+                    title: const Text('Voice-Only Mode'),
+                    content: const Text(
+                      'Voice-Only mode is optimized for mobile and provides:\n\n'
+                      '✓ Crystal clear audio with Hera\n'
+                      '✓ Real-time transcription as you speak\n'
+                      '✓ Faster response times\n'
+                      '✓ Full AI coaching features\n'
+                      '✓ No video buffering or connectivity issues\n\n'
+                      'Video + Voice mode is available on the web version.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('Got it'),
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+          ),
+          // Mode Toggle Switch (disabled on mobile)
           Padding(
-            padding: const EdgeInsets.only(right: 16.0),
+            padding: const EdgeInsets.only(right: 8.0),
             child: Row(
               children: [
                 const Text(
                   'Video',
-                  style: TextStyle(fontSize: 12, color: Colors.white70),
+                  style: TextStyle(fontSize: 12, color: Colors.white38),
                 ),
                 Switch(
                   value: _videoMode,
                   onChanged: (value) {
                     if (value) {
-                      // Navigate to Avatar Screen (Video + Voice mode)
+                      // Navigate to native Video+Voice implementation
                       Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(builder: (context) => const AvatarScreen()),
+                        MaterialPageRoute(
+                          builder: (context) => const AvatarScreenNative(),
+                        ),
                       );
+                    } else {
+                      // Stay in Voice-Only mode (current screen)
+                      setState(() {
+                        _videoMode = false;
+                      });
                     }
                   },
                   activeColor: Colors.white,

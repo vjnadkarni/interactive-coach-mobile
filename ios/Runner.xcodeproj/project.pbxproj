@@ -15,6 +15,14 @@
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
+		B1A870D02EC4722F00BB0A2C /* NativeSpeechRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A870CF2EC4722F00BB0A2C /* NativeSpeechRecognizer.swift */; };
+		B1A870D12EC4722F00BB0A2C /* NativeSpeechRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A870CF2EC4722F00BB0A2C /* NativeSpeechRecognizer.swift */; };
+		B1AC7C772EC7F9E2005982E6 /* HeyGenAvatarViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1AC7C752EC7F9E2005982E6 /* HeyGenAvatarViewModel.swift */; };
+		B1AC7C782EC7F9E2005982E6 /* HeyGenAPIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1AC7C732EC7F9E2005982E6 /* HeyGenAPIModels.swift */; };
+		B1AC7C792EC7F9E2005982E6 /* HeyGenConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1AC7C762EC7F9E2005982E6 /* HeyGenConfig.swift */; };
+		B1AC7C7A2EC7F9E2005982E6 /* HeyGenAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1AC7C722EC7F9E2005982E6 /* HeyGenAPI.swift */; };
+		B1AC7C7B2EC7F9E2005982E6 /* HeyGenAvatarViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1AC7C742EC7F9E2005982E6 /* HeyGenAvatarViewController.swift */; };
+		B1AC7C7D2EC7FB10005982E6 /* LiveKit in Frameworks */ = {isa = PBXBuildFile; productRef = B1AC7C7C2EC7FB10005982E6 /* LiveKit */; };
 		E51EBE53C27CFCE2C2475B68 /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 05E0BCD536DE034E6D3BCA03 /* Pods_RunnerTests.framework */; };
 /* End PBXBuildFile section */
 
@@ -64,6 +72,12 @@
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B170C9A12EB83D2E00720916 /* Runner.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Runner.entitlements; sourceTree = "<group>"; };
+		B1A870CF2EC4722F00BB0A2C /* NativeSpeechRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeSpeechRecognizer.swift; sourceTree = "<group>"; };
+		B1AC7C722EC7F9E2005982E6 /* HeyGenAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HeyGenAPI.swift; path = Runner/HeyGen/HeyGenAPI.swift; sourceTree = "<group>"; };
+		B1AC7C732EC7F9E2005982E6 /* HeyGenAPIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HeyGenAPIModels.swift; path = Runner/HeyGen/HeyGenAPIModels.swift; sourceTree = "<group>"; };
+		B1AC7C742EC7F9E2005982E6 /* HeyGenAvatarViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HeyGenAvatarViewController.swift; path = Runner/HeyGen/HeyGenAvatarViewController.swift; sourceTree = "<group>"; };
+		B1AC7C752EC7F9E2005982E6 /* HeyGenAvatarViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HeyGenAvatarViewModel.swift; path = Runner/HeyGen/HeyGenAvatarViewModel.swift; sourceTree = "<group>"; };
+		B1AC7C762EC7F9E2005982E6 /* HeyGenConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HeyGenConfig.swift; path = Runner/HeyGen/HeyGenConfig.swift; sourceTree = "<group>"; };
 		B4CF1851FC53E2E54A780AC3 /* Pods-RunnerTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.release.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.release.xcconfig"; sourceTree = "<group>"; };
 		EE2AB9ECC7BE5D35A8B734BC /* Pods-RunnerTests.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.profile.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.profile.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -82,6 +96,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				3A5544F0CE56C3CF820F3637 /* Pods_Runner.framework in Frameworks */,
+				B1AC7C7D2EC7FB10005982E6 /* LiveKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -110,6 +125,12 @@
 		97C146E51CF9000F007C117D = {
 			isa = PBXGroup;
 			children = (
+				B1AC7C722EC7F9E2005982E6 /* HeyGenAPI.swift */,
+				B1AC7C732EC7F9E2005982E6 /* HeyGenAPIModels.swift */,
+				B1AC7C742EC7F9E2005982E6 /* HeyGenAvatarViewController.swift */,
+				B1AC7C752EC7F9E2005982E6 /* HeyGenAvatarViewModel.swift */,
+				B1AC7C762EC7F9E2005982E6 /* HeyGenConfig.swift */,
+				B1A870CF2EC4722F00BB0A2C /* NativeSpeechRecognizer.swift */,
 				9740EEB11CF90186004384FC /* Flutter */,
 				97C146F01CF9000F007C117D /* Runner */,
 				97C146EF1CF9000F007C117D /* Products */,
@@ -240,6 +261,9 @@
 				Base,
 			);
 			mainGroup = 97C146E51CF9000F007C117D;
+			packageReferences = (
+				B1AC7C622EC7EF37005982E6 /* XCRemoteSwiftPackageReference "client-sdk-swift" */,
+			);
 			productRefGroup = 97C146EF1CF9000F007C117D /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -388,6 +412,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B1A870D02EC4722F00BB0A2C /* NativeSpeechRecognizer.swift in Sources */,
 				331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -396,7 +421,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B1AC7C772EC7F9E2005982E6 /* HeyGenAvatarViewModel.swift in Sources */,
+				B1AC7C782EC7F9E2005982E6 /* HeyGenAPIModels.swift in Sources */,
+				B1AC7C792EC7F9E2005982E6 /* HeyGenConfig.swift in Sources */,
+				B1AC7C7A2EC7F9E2005982E6 /* HeyGenAPI.swift in Sources */,
+				B1AC7C7B2EC7F9E2005982E6 /* HeyGenAvatarViewController.swift in Sources */,
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
+				B1A870D12EC4722F00BB0A2C /* NativeSpeechRecognizer.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -757,6 +788,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		B1AC7C622EC7EF37005982E6 /* XCRemoteSwiftPackageReference "client-sdk-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/livekit/client-sdk-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.10.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		B1AC7C7C2EC7FB10005982E6 /* LiveKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B1AC7C622EC7EF37005982E6 /* XCRemoteSwiftPackageReference "client-sdk-swift" */;
+			productName = LiveKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 97C146E61CF9000F007C117D /* Project object */;
 }

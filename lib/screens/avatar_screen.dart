@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'dart:convert';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../services/api_service.dart';
-import '../services/deepgram_service.dart';
+import '../services/native_speech_service.dart';
 import '../utils/constants.dart';
 import 'health_test_screen.dart';
 import 'health_dashboard_screen.dart';
@@ -17,7 +18,7 @@ class AvatarScreen extends StatefulWidget {
 
 class _AvatarScreenState extends State<AvatarScreen> {
   final ApiService _apiService = ApiService();
-  final DeepgramService _deepgramService = DeepgramService();
+  final NativeSpeechService _nativeSpeech = NativeSpeechService();
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
@@ -25,7 +26,7 @@ class _AvatarScreenState extends State<AvatarScreen> {
   bool _isListening = false;
   bool _isLoading = false;
   bool _isWebViewReady = false;
-  bool _deepgramAvailable = false;
+  bool _speechAvailable = false;
   String _userId = 'default_user';
   String _avatarStatus = 'Loading...';
   String _currentTranscript = '';
@@ -35,18 +36,52 @@ class _AvatarScreenState extends State<AvatarScreen> {
   @override
   void initState() {
     super.initState();
-    _initDeepgram();
-    _initWebView();
-    _addMessage('assistant', 'Hi! I\'m Hera, your health and wellness coach. How can I help you today?');
+
+    // Show message that Video+Voice is not available on mobile
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showVideoModeNotAvailableDialog();
+    });
   }
 
-  Future<void> _initDeepgram() async {
-    try {
-      await _deepgramService.connect();
+  void _showVideoModeNotAvailableDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Video + Voice Mode'),
+          content: const Text(
+            'Video + Voice mode with the interactive avatar is currently not available on iOS mobile due to platform limitations.\n\n'
+            'Please use Voice-Only mode for the best mobile experience with Hera. Voice-Only mode provides:\n\n'
+            '• Crystal clear audio\n'
+            '• Real-time transcription\n'
+            '• Faster responses\n'
+            '• Full AI coaching features\n\n'
+            'Video + Voice mode is available on the web version.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close dialog
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (context) => const ChatScreen()),
+                );
+              },
+              child: const Text('Switch to Voice-Only Mode'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
-      // Listen to final transcripts from Deepgram
-      _deepgramService.finalTranscriptStream.listen((transcript) {
-        print('✅ [AvatarScreen] Final Deepgram transcript: "$transcript"');
+  Future<void> _initSpeech() async {
+    try {
+      _speechAvailable = await _nativeSpeech.initialize();
+
+      // Listen to final transcripts
+      _nativeSpeech.finalTranscriptStream.listen((transcript) {
+        print('✅ [AvatarScreen] Final transcript: "$transcript"');
 
         // Cancel silence timer since we got a final result
         _silenceTimer?.cancel();
@@ -57,11 +92,12 @@ class _AvatarScreenState extends State<AvatarScreen> {
 
         // Reset
         _currentTranscript = '';
+        _stopListening();
       });
 
       // Listen to interim transcripts for display
-      _deepgramService.transcriptStream.listen((transcript) {
-        print('📝 [AvatarScreen] Interim Deepgram transcript: "$transcript"');
+      _nativeSpeech.transcriptStream.listen((transcript) {
+        print('📝 [AvatarScreen] Interim transcript: "$transcript"');
         setState(() {
           _currentTranscript = transcript;
         });
@@ -70,14 +106,18 @@ class _AvatarScreenState extends State<AvatarScreen> {
         _resetSilenceTimer();
       });
 
-      setState(() {
-        _deepgramAvailable = true;
+      // Listen to errors
+      _nativeSpeech.errorStream.listen((error) {
+        print('❌ [AvatarScreen] Speech error: $error');
+        _addMessage('error', 'Speech recognition error: $error');
+        _stopListening();
       });
-      print('✅ [AvatarScreen] Deepgram initialized successfully');
+
+      print('✅ [AvatarScreen] Native speech initialized successfully');
     } catch (e) {
-      print('❌ [AvatarScreen] Failed to initialize Deepgram: $e');
+      print('❌ [AvatarScreen] Failed to initialize speech: $e');
       setState(() {
-        _deepgramAvailable = false;
+        _speechAvailable = false;
       });
     }
   }
@@ -100,26 +140,65 @@ class _AvatarScreenState extends State<AvatarScreen> {
     _webViewController = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0x00000000))
+      ..enableZoom(false)
       ..setNavigationDelegate(
         NavigationDelegate(
           onProgress: (int progress) {
-            print('🔵 WebView loading: $progress%');
+            print('🔵 [AvatarScreen] WebView loading: $progress%');
           },
           onPageStarted: (String url) {
-            print('🔵 Page started loading: $url');
+            print('🔵 [AvatarScreen] Page started loading: $url');
             setState(() {
               _avatarStatus = 'Connecting...';
             });
           },
           onPageFinished: (String url) {
-            print('✅ Page finished loading: $url');
+            print('✅ [AvatarScreen] Page finished loading: $url');
+
+            // Enable console logging from WebView
+            _webViewController.runJavaScript('''
+              console.log = (function(oldLog) {
+                return function(...args) {
+                  oldLog.apply(console, args);
+                  FlutterChannel.postMessage(JSON.stringify({
+                    type: 'console',
+                    message: args.join(' ')
+                  }));
+                };
+              })(console.log);
+              console.error = console.log;
+              console.warn = console.log;
+              console.log('✅ Console logging forwarded to Flutter');
+
+              // CRITICAL: Initialize AudioContext for iOS WebView audio playback
+              try {
+                console.log('🔊 Attempting AudioContext initialization...');
+                if (typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined') {
+                  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                  const audioContext = new AudioContextClass();
+                  console.log('🔊 AudioContext created, state:', audioContext.state);
+
+                  // Resume audio context
+                  audioContext.resume().then(() => {
+                    console.log('✅ AudioContext resumed successfully, state:', audioContext.state);
+                  }).catch((e) => {
+                    console.error('❌ AudioContext resume failed:', e);
+                  });
+                } else {
+                  console.error('❌ AudioContext not supported');
+                }
+              } catch (e) {
+                console.error('❌ AudioContext initialization error:', e);
+              }
+            ''');
+
             setState(() {
               _isWebViewReady = true;
               _avatarStatus = 'Ready';
             });
           },
           onWebResourceError: (WebResourceError error) {
-            print('❌ WebView error: ${error.description}');
+            print('❌ [AvatarScreen] WebView error: ${error.description}');
             setState(() {
               _avatarStatus = 'Error loading avatar';
             });
@@ -136,12 +215,19 @@ class _AvatarScreenState extends State<AvatarScreen> {
   }
 
   void _handleWebViewMessage(String message) {
-    print('📨 Message from WebView: $message');
-
     try {
-      // Parse JSON message from WebView
-      // Expected format: {"type": "status", "status": "speaking"}
-      // For now, just log it
+      // Try to parse as JSON
+      final data = jsonDecode(message);
+
+      if (data['type'] == 'console') {
+        // Forward console logs from WebView
+        print('🌐 [WebView Console] ${data['message']}');
+        return;
+      }
+
+      // Handle other message types
+      print('📨 [AvatarScreen] Message from WebView: $message');
+
       setState(() {
         if (message.contains('speaking')) {
           _avatarStatus = 'Speaking';
@@ -152,26 +238,52 @@ class _AvatarScreenState extends State<AvatarScreen> {
         }
       });
     } catch (e) {
-      print('Error parsing WebView message: $e');
+      // Not JSON, treat as plain text
+      print('📨 [AvatarScreen] Message from WebView: $message');
+
+      setState(() {
+        if (message.contains('speaking')) {
+          _avatarStatus = 'Speaking';
+        } else if (message.contains('listening')) {
+          _avatarStatus = 'Listening';
+        } else if (message.contains('ready')) {
+          _avatarStatus = 'Ready';
+        }
+      });
     }
   }
 
   void _sendToWebView(String type, String text) {
     if (!_isWebViewReady) {
-      print('⚠️ WebView not ready yet');
+      print('⚠️ [AvatarScreen] WebView not ready yet');
       return;
     }
 
+    print('📤 [AvatarScreen] Sending to WebView - type: $type, text length: ${text.length}');
+    print('📝 [AvatarScreen] Text preview: ${text.substring(0, text.length > 100 ? 100 : text.length)}...');
+
+    // Escape single quotes and backticks in text to prevent JavaScript errors
+    final escapedText = text
+        .replaceAll('\\', '\\\\')
+        .replaceAll('`', '\\`')
+        .replaceAll('\$', '\\\$')
+        .replaceAll('\n', '\\n')
+        .replaceAll('\r', '\\r');
+
     // Send message to WebView JavaScript
     final jsCode = '''
+      console.log('🔵 [WebView] Received postMessage call from Flutter');
+      console.log('🔵 [WebView] Type: $type');
+      console.log('🔵 [WebView] Text length: ${escapedText.length}');
       window.postMessage({
         type: '$type',
-        text: `$text`
+        text: `$escapedText`
       }, '*');
+      console.log('✅ [WebView] postMessage sent');
     ''';
 
     _webViewController.runJavaScript(jsCode);
-    print('📤 Sent to WebView: $type');
+    print('✅ [AvatarScreen] JavaScript executed');
   }
 
   void _addMessage(String role, String content) {
@@ -261,13 +373,13 @@ class _AvatarScreenState extends State<AvatarScreen> {
   }
 
   Future<void> _startListening() async {
-    if (!_deepgramAvailable) {
-      print('❌ [AvatarScreen] Deepgram not available');
-      _addMessage('error', 'Speech recognition not available. Please check your connection.');
+    if (!_speechAvailable) {
+      print('❌ [AvatarScreen] Speech recognition not available');
+      _addMessage('error', 'Speech recognition not available. Please enable microphone permissions.');
       return;
     }
 
-    print('🎤 [AvatarScreen] Starting Deepgram speech recognition...');
+    print('🎤 [AvatarScreen] Starting speech recognition...');
 
     setState(() {
       _isListening = true;
@@ -275,14 +387,14 @@ class _AvatarScreenState extends State<AvatarScreen> {
       _avatarStatus = 'Listening';
     });
 
-    // Start recording and streaming to Deepgram
-    await _deepgramService.startRecording();
+    // Start listening with native iOS speech
+    await _nativeSpeech.startListening();
 
-    print('✅ [AvatarScreen] Deepgram listening started');
+    print('✅ [AvatarScreen] Speech recognition started');
   }
 
   Future<void> _stopListening() async {
-    await _deepgramService.stopRecording();
+    await _nativeSpeech.stopListening();
     _silenceTimer?.cancel();
 
     setState(() {
@@ -290,7 +402,7 @@ class _AvatarScreenState extends State<AvatarScreen> {
       _avatarStatus = 'Ready';
     });
 
-    print('🛑 [AvatarScreen] Deepgram stopped');
+    print('🛑 [AvatarScreen] Speech recognition stopped');
   }
 
   @override
@@ -493,7 +605,7 @@ class _AvatarScreenState extends State<AvatarScreen> {
     _sendToWebView('stop', '');
 
     _silenceTimer?.cancel();
-    _deepgramService.dispose();
+    _nativeSpeech.dispose();
     _textController.dispose();
     _scrollController.dispose();
     super.dispose();
