@@ -58,5 +58,18 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.galenogen.interactivecoach</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>interactivecoach</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

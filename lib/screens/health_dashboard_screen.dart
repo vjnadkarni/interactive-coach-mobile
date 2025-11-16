@@ -10,6 +10,7 @@ import '../services/auth_service.dart';
 import '../models/body_composition.dart';
 import '../widgets/body_composition_card.dart';
 import 'chat_screen.dart';
+import 'body_composition_screen.dart';
 
 /// Health Dashboard Screen
 ///
@@ -284,9 +285,19 @@ class _HealthDashboardScreenState extends State<HealthDashboardScreen> {
                         const SizedBox(height: 16),
 
                         // Body Composition Card (third card - below Vitals and Activity)
-                        BodyCompositionCard(
-                          measurement: BodyComposition.mock(),
-                          isLoading: false,
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const BodyCompositionScreen(),
+                              ),
+                            );
+                          },
+                          child: BodyCompositionCard(
+                            measurement: BodyComposition.mock(),
+                            isLoading: false,
+                          ),
                         ),
                         const SizedBox(height: 16),
 

@@ -4,6 +4,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/chat_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/auth_service.dart';
+import 'services/deep_link_service.dart';
+
+// Global deep link service instance
+final deepLinkService = DeepLinkService();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,6 +20,9 @@ Future<void> main() async {
     url: dotenv.env['SUPABASE_URL']!,
     anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
+
+  // Initialize deep link listener for OAuth callbacks
+  await deepLinkService.initialize();
 
   runApp(const MyApp());
 }
