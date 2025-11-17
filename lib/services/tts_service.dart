@@ -33,21 +33,11 @@ class BytesAudioSource extends StreamAudioSource {
 class TTSService {
   AudioPlayer? _audioPlayer; // Nullable - create fresh player for each request
   bool _isPlaying = false;
-  bool _sessionConfigured = false;
 
-  /// Configure audio session for iOS playback
-  Future<void> _configureAudioSession() async {
-    if (_sessionConfigured) return;
-
-    try {
-      final session = await AudioSession.instance;
-      await session.configure(const AudioSessionConfiguration.speech());
-      print('✅ [TTSService] Audio session configured for playback');
-      _sessionConfigured = true;
-    } catch (e) {
-      print('⚠️ [TTSService] Failed to configure audio session: $e');
-    }
-  }
+  // REMOVED: Audio session configuration
+  // The AppDelegate.swift already configures the audio session globally
+  // with .playback category and .spokenAudio mode.
+  // Attempting to reconfigure it here causes conflicts (Error -50)
 
   /// Generate and play audio from text using ElevenLabs
   ///
@@ -70,8 +60,8 @@ class TTSService {
     print('🎵 [TTSService] Created fresh AudioPlayer instance');
 
     try {
-      // Configure audio session before playing
-      await _configureAudioSession();
+      // Audio session is already configured globally in AppDelegate.swift
+      // No need to configure it here (doing so causes conflicts)
 
       print('🔊 [TTSService] Generating speech for: "${text.substring(0, text.length > 50 ? 50 : text.length)}..."');
 
