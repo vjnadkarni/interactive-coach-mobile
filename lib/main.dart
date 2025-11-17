@@ -10,25 +10,36 @@ import 'services/deep_link_service.dart';
 final deepLinkService = DeepLinkService();
 
 Future<void> main() async {
+  print('🚀 [MAIN] Step 1: Starting app initialization...');
+
   WidgetsFlutterBinding.ensureInitialized();
+  print('🚀 [MAIN] Step 2: WidgetsFlutterBinding initialized');
 
   try {
     // Load environment variables
+    print('🚀 [MAIN] Step 3: Loading .env file...');
     await dotenv.load(fileName: ".env");
+    print('🚀 [MAIN] Step 4: .env loaded successfully');
 
     // Initialize Supabase
+    print('🚀 [MAIN] Step 5: Initializing Supabase...');
     await Supabase.initialize(
       url: dotenv.env['SUPABASE_URL']!,
       anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
     );
+    print('🚀 [MAIN] Step 6: Supabase initialized successfully');
 
     // Initialize deep link listener for OAuth callbacks
+    print('🚀 [MAIN] Step 7: Initializing deep link service...');
     await deepLinkService.initialize();
+    print('🚀 [MAIN] Step 8: Deep link service initialized successfully');
 
+    print('🚀 [MAIN] Step 9: Running app...');
     runApp(const MyApp());
+    print('🚀 [MAIN] Step 10: App launched successfully');
   } catch (e, stackTrace) {
-    print('❌ Fatal error during app initialization: $e');
-    print('Stack trace: $stackTrace');
+    print('❌ [MAIN] Fatal error during app initialization: $e');
+    print('❌ [MAIN] Stack trace: $stackTrace');
 
     // Run app with error screen
     runApp(MaterialApp(
@@ -49,7 +60,12 @@ Future<void> main() async {
                 Text(
                   e.toString(),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 14),
+                  style: const TextStyle(fontSize: 14, color: Colors.black87),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Check console logs for details',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ],
             ),
