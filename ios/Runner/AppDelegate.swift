@@ -22,25 +22,9 @@ import AVFoundation
       registrar.register(factory, withId: "heygen_avatar_view")
     }
 
-    // Configure audio session for playback
-    // SIMPLIFIED: Use basic .playback category without mode to avoid Error -50
-    do {
-      try AVAudioSession.sharedInstance().setCategory(
-        .playback,
-        options: [.allowBluetooth, .defaultToSpeaker]
-      )
-      try AVAudioSession.sharedInstance().setActive(true)
-
-      // Log available audio routes
-      let currentRoute = AVAudioSession.sharedInstance().currentRoute
-      print("🔊 [AppDelegate] Audio session configured successfully")
-      print("🔊 [AppDelegate] Current audio route:")
-      for output in currentRoute.outputs {
-        print("  - \(output.portType.rawValue): \(output.portName)")
-      }
-    } catch {
-      print("❌ [AppDelegate] Failed to configure audio session: \(error)")
-    }
+    // REMOVED: Audio session configuration
+    // Let just_audio plugin handle audio session automatically
+    // Manual configuration was causing Error -50 conflicts
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
