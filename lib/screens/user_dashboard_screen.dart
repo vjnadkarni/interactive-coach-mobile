@@ -29,20 +29,42 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _loadUserData();
+    print('🏠 [Dashboard] Initializing UserDashboardScreen...');
+
+    // Wrap in try-catch to prevent crashes on standalone launch
+    try {
+      _loadUserData();
+    } catch (e, stackTrace) {
+      print('❌ [Dashboard] Error in initState: $e');
+      print('Stack trace: $stackTrace');
+
+      // Set error state instead of crashing
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to initialize: $e';
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   Future<void> _loadUserData() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+    print('🏠 [Dashboard] Loading user data...');
 
     try {
+      if (mounted) {
+        setState(() {
+          _isLoading = true;
+          _errorMessage = null;
+        });
+      }
+
       final user = _authService.currentUser;
+      print('🏠 [Dashboard] Current user: ${user?.email ?? "null"}');
 
       if (user == null) {
         // User not authenticated - redirect to login
+        print('🏠 [Dashboard] No user found, redirecting to login');
         if (mounted) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -51,16 +73,23 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
         return;
       }
 
-      setState(() {
-        _currentUser = user;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Error loading user data: $e';
-        _isLoading = false;
-      });
-      print('❌ Error loading user data: $e');
+      print('🏠 [Dashboard] User loaded successfully');
+      if (mounted) {
+        setState(() {
+          _currentUser = user;
+          _isLoading = false;
+        });
+      }
+    } catch (e, stackTrace) {
+      print('❌ [Dashboard] Error loading user data: $e');
+      print('Stack trace: $stackTrace');
+
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Error loading user data: $e';
+          _isLoading = false;
+        });
+      }
     }
   }
 
