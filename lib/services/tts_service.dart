@@ -31,7 +31,7 @@ class BytesAudioSource extends StreamAudioSource {
 /// Text-to-Speech Service using ElevenLabs API
 /// Generates audio from text using Rachel voice (same as web app)
 class TTSService {
-  final AudioPlayer _audioPlayer = AudioPlayer();
+  AudioPlayer? _audioPlayer; // Nullable - create fresh player for each request
   bool _isPlaying = false;
   bool _sessionConfigured = false;
 
@@ -62,6 +62,12 @@ class TTSService {
       // Add small delay to ensure stop completes
       await Future.delayed(const Duration(milliseconds: 100));
     }
+
+    // CRITICAL FIX: Create fresh AudioPlayer for each request
+    // Reusing the same player causes it to get stuck after first playback
+    _audioPlayer?.dispose();
+    _audioPlayer = AudioPlayer();
+    print('🎵 [TTSService] Created fresh AudioPlayer instance');
 
     try {
       // Configure audio session before playing
@@ -107,19 +113,18 @@ class TTSService {
       _isPlaying = true;
 
       final audioSource = BytesAudioSource(response.bodyBytes);
-      await _audioPlayer.setAudioSource(audioSource);
+      await _audioPlayer!.setAudioSource(audioSource);
       print('🔊 [TTSService] Playing audio from memory stream...');
-      await _audioPlayer.play();
+      await _audioPlayer!.play();
 
-      // Wait for playback to complete with timeout
-      // If audio doesn't complete in 2 minutes, something is wrong
+      // Wait for playback to complete with timeout (reduced to 30 seconds for faster feedback)
       try {
-        await _audioPlayer.processingStateStream.firstWhere(
+        await _audioPlayer!.processingStateStream.firstWhere(
           (state) => state == ProcessingState.completed,
         ).timeout(
-          const Duration(minutes: 2),
+          const Duration(seconds: 30),
           onTimeout: () {
-            print('❌ [TTSService] Audio playback timeout after 2 minutes');
+            print('❌ [TTSService] Audio playback timeout after 30 seconds');
             throw Exception('Audio playback timeout');
           },
         );
@@ -150,9 +155,9 @@ class TTSService {
 
   /// Stop current audio playback
   Future<void> stop() async {
-    if (_isPlaying) {
+    if (_isPlaying && _audioPlayer != null) {
       print('🛑 [TTSService] Stopping audio playback');
-      await _audioPlayer.stop();
+      await _audioPlayer!.stop();
       _isPlaying = false;
     }
   }
@@ -176,6 +181,6 @@ class TTSService {
 
   /// Dispose audio player resources
   void dispose() {
-    _audioPlayer.dispose();
+    _audioPlayer?.dispose();
   }
 }

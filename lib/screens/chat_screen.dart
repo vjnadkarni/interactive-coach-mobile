@@ -210,7 +210,13 @@ class _ChatScreenState extends State<ChatScreen> {
           print('✅ [ChatScreen] Audio playback complete');
         } else {
           print('⚠️ [ChatScreen] Audio playback failed (non-blocking)');
+          // DIAGNOSTIC: Show error in chat so user can see TTS is failing
+          _addMessage('error', '⚠️ TTS failed - check audio permissions or ElevenLabs API key');
         }
+      } else {
+        // DIAGNOSTIC: Show if response was empty
+        print('⚠️ [ChatScreen] Response was empty, skipping TTS');
+        _addMessage('error', '⚠️ Response was empty');
       }
 
     } catch (e) {
