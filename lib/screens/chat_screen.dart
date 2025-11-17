@@ -179,7 +179,13 @@ class _ChatScreenState extends State<ChatScreen> {
       print('✅ [ChatScreen] Stream complete. Total chunks: $chunkCount');
       print('✅ [ChatScreen] Full response length: ${fullResponse.length} chars');
 
-      // Play audio response using TTS
+      // CRITICAL FIX: Stop spinner immediately after stream completes
+      // Don't wait for TTS to finish - that can take 30-60 seconds for long responses
+      setState(() {
+        _isLoading = false;
+      });
+
+      // Play audio response using TTS (non-blocking, runs in background)
       if (fullResponse.isNotEmpty) {
         setState(() {
           _isSpeaking = true;
@@ -203,7 +209,8 @@ class _ChatScreenState extends State<ChatScreen> {
       print('❌ [ChatScreen] Error sending message: $e');
       print('❌ [ChatScreen] Stack trace: ${StackTrace.current}');
       _addMessage('error', 'Error: ${e.toString()}');
-    } finally {
+
+      // Make sure spinner stops even on error
       setState(() {
         _isLoading = false;
       });
