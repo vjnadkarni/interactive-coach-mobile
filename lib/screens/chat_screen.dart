@@ -32,6 +32,7 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _speechAvailable = false;
   String _userId = 'default_user';
   int _selectedIndex = 1; // Chat tab selected by default
+  Timer? _autoStopTimer; // Timer to auto-stop listening after 2 minutes
   List<Map<String, String>> _messages = [];
   String _currentTranscript = '';
   Timer? _silenceTimer;
@@ -63,6 +64,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void dispose() {
     _ttsService.dispose();
     _silenceTimer?.cancel();
+    _autoStopTimer?.cancel(); // Clean up auto-stop timer
     _nativeSpeech.dispose();
     super.dispose();
   }
@@ -91,7 +93,16 @@ class _ChatScreenState extends State<ChatScreen> {
     // Listen to errors
     _nativeSpeech.errorStream.listen((error) {
       print('❌ [ChatScreen] Speech error: $error');
-      _addMessage('error', 'Speech recognition error: $error');
+
+      // Don't show error message for "No speech detected" (happens when 2-min timer expires)
+      // The microphone icon changing from red to grey is enough visual feedback
+      if (error.toString().toLowerCase().contains('no speech detected')) {
+        print('ℹ️ [ChatScreen] Suppressing "No speech detected" message - normal timeout');
+      } else {
+        // Only show error messages for actual errors (permissions, network, etc.)
+        _addMessage('error', 'Speech recognition error: $error');
+      }
+
       _stopListening();
     });
 
@@ -208,6 +219,18 @@ class _ChatScreenState extends State<ChatScreen> {
 
         if (success) {
           print('✅ [ChatScreen] Audio playback complete');
+
+          // CRITICAL: Auto-restart listening after TTS finishes
+          // Keep microphone active for 2 minutes to allow continuous conversation
+          print('🎤 [ChatScreen] Auto-restarting microphone for next question...');
+          _startListening();
+
+          // Set 2-minute auto-stop timer
+          _autoStopTimer?.cancel(); // Cancel any existing timer
+          _autoStopTimer = Timer(const Duration(minutes: 2), () {
+            print('⏱️ [ChatScreen] 2-minute listening timeout - stopping microphone');
+            _stopListening();
+          });
         } else {
           print('⚠️ [ChatScreen] Audio playback failed (non-blocking)');
           // DIAGNOSTIC: Show error in chat so user can see TTS is failing

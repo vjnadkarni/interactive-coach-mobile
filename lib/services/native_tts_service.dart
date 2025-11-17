@@ -28,7 +28,13 @@ class NativeTTSService {
 
       // Strip references section
       final cleanText = _stripReferences(text);
-      print('📝 [NativeTTS] Clean text (${cleanText.length} chars)');
+
+      // CRITICAL FIX: Add explicit silence markers at start
+      // Use multiple periods and commas to create ~1 second of silence in ElevenLabs TTS
+      // This ensures the actual first word is NOT the first audio in the file
+      // Testing showed timer delays don't help - silence must be IN the audio file itself
+      final textWithPause = '. . . , , , $cleanText';
+      print('📝 [NativeTTS] Clean text (${cleanText.length} chars) + silence markers (dots + commas)');
 
       // Call ElevenLabs API
       final url = Uri.parse(
@@ -41,14 +47,17 @@ class NativeTTSService {
         headers: {
           'xi-api-key': AppConstants.elevenLabsApiKey,
           'Content-Type': 'application/json',
+          'Accept': 'audio/mpeg',  // Request MP3 format
         },
         body: json.encode({
-          'text': cleanText,
+          'text': textWithPause,
           'model_id': 'eleven_monolingual_v1',
           'voice_settings': {
             'stability': 0.5,
             'similarity_boost': 0.75,
           },
+          // Use high-quality MP3 format (AVAudioPlayer handles MP3 natively)
+          'output_format': 'mp3_44100_128',  // MP3 44.1kHz, 128kbps
         }),
       );
 

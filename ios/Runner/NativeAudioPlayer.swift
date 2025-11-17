@@ -1,8 +1,7 @@
 import Flutter
 import AVFoundation
 
-/// Native audio player using AVAudioPlayer for reliable TTS playback
-/// Bypasses just_audio package issues with consecutive playback
+/// Native audio player using AVAudioPlayer with enhanced first-word truncation prevention
 class NativeAudioPlayer: NSObject, FlutterPlugin, AVAudioPlayerDelegate {
     static var channel: FlutterMethodChannel?
     var audioPlayer: AVAudioPlayer?
@@ -47,25 +46,44 @@ class NativeAudioPlayer: NSObject, FlutterPlugin, AVAudioPlayerDelegate {
         }
 
         do {
-            // Create new player with fresh audio data
-            audioPlayer = try AVAudioPlayer(data: data)
-            audioPlayer?.delegate = self
-            audioPlayer?.prepareToPlay()
-
-            // Configure audio session
+            // CRITICAL: Configure audio session FIRST, before creating player
             try AVAudioSession.sharedInstance().setCategory(.playback, options: [.mixWithOthers])
             try AVAudioSession.sharedInstance().setActive(true)
 
-            // Start playback
+            // Create new player with audio data
+            audioPlayer = try AVAudioPlayer(data: data)
+            audioPlayer?.delegate = self
+            audioPlayer?.volume = 1.0  // Ensure full volume
+
+            // Prepare audio for playback
+            let prepareSuccess = audioPlayer?.prepareToPlay() ?? false
+
+            if !prepareSuccess {
+                print("❌ [NativeAudioPlayer] prepareToPlay() failed")
+                result(FlutterError(code: "PREPARE_FAILED", message: "Failed to prepare audio", details: nil))
+                return
+            }
+
+            // Verify audio is valid
+            guard let duration = audioPlayer?.duration, duration > 0 else {
+                print("❌ [NativeAudioPlayer] Invalid duration: \(audioPlayer?.duration ?? 0)")
+                result(FlutterError(code: "INVALID_AUDIO", message: "Invalid audio duration", details: nil))
+                return
+            }
+
+            print("✅ [NativeAudioPlayer] Audio prepared: \(duration)s, \(data.count) bytes")
+
+            // Start playback immediately (no delay)
+            // The silence is already in the audio file from TTS text prefix
             let success = audioPlayer?.play() ?? false
 
             if success {
                 isPlaying = true
-                print("✅ [NativeAudioPlayer] Audio started successfully")
+                print("✅ [NativeAudioPlayer] Playback started")
                 result(true)
             } else {
-                print("❌ [NativeAudioPlayer] Failed to start audio")
-                result(FlutterError(code: "PLAYBACK_FAILED", message: "Failed to start audio", details: nil))
+                print("❌ [NativeAudioPlayer] play() failed")
+                result(FlutterError(code: "PLAYBACK_FAILED", message: "Playback failed", details: nil))
             }
         } catch {
             print("❌ [NativeAudioPlayer] Error: \(error)")
@@ -87,7 +105,7 @@ class NativeAudioPlayer: NSObject, FlutterPlugin, AVAudioPlayerDelegate {
         isPlaying = false
         audioPlayer = nil
 
-        // Notify Flutter that playback finished
+        // Notify Flutter
         NativeAudioPlayer.channel?.invokeMethod("onPlaybackComplete", arguments: flag)
     }
 
@@ -96,7 +114,7 @@ class NativeAudioPlayer: NSObject, FlutterPlugin, AVAudioPlayerDelegate {
         isPlaying = false
         audioPlayer = nil
 
-        // Notify Flutter of error
+        // Notify Flutter
         NativeAudioPlayer.channel?.invokeMethod("onPlaybackError", arguments: error?.localizedDescription)
     }
 }
