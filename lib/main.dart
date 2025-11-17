@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'screens/chat_screen.dart';
+import 'screens/user_dashboard_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/auth_service.dart';
 import 'services/deep_link_service.dart';
@@ -98,8 +98,11 @@ class MyApp extends StatelessWidget {
 /// Authentication Gate
 ///
 /// Checks if user is authenticated and routes to appropriate screen.
-/// - If authenticated: ChatScreen (Voice + Text mode)
+/// - If authenticated: UserDashboardScreen (on fresh app launch)
 /// - If not authenticated: LoginScreen
+///
+/// Note: When app is already running in background, Flutter's built-in
+/// behavior keeps users on whatever screen they were on last.
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
 
@@ -153,7 +156,9 @@ class _AuthGateState extends State<AuthGate> {
     }
 
     // Route to appropriate screen based on authentication status
-    return _isAuthenticated ? const ChatScreen() : const LoginScreen();
+    // Fresh app launch: Authenticated users go to Dashboard
+    // Background app: Flutter automatically preserves the last screen
+    return _isAuthenticated ? const UserDashboardScreen() : const LoginScreen();
   }
 }
 
