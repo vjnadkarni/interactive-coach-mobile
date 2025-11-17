@@ -59,6 +59,8 @@ class TTSService {
     if (_isPlaying) {
       print('⚠️ [TTSService] Already playing audio, stopping previous audio');
       await stop();
+      // Add small delay to ensure stop completes
+      await Future.delayed(const Duration(milliseconds: 100));
     }
 
     try {
@@ -95,6 +97,7 @@ class TTSService {
       if (response.statusCode != 200) {
         print('❌ [TTSService] ElevenLabs API error: ${response.statusCode}');
         print('❌ [TTSService] Response body: ${response.body}');
+        _isPlaying = false; // CRITICAL: Reset flag on API error
         return false;
       }
 
@@ -108,10 +111,24 @@ class TTSService {
       print('🔊 [TTSService] Playing audio from memory stream...');
       await _audioPlayer.play();
 
-      // Wait for playback to complete
-      await _audioPlayer.processingStateStream.firstWhere(
-        (state) => state == ProcessingState.completed,
-      );
+      // Wait for playback to complete with timeout
+      // If audio doesn't complete in 2 minutes, something is wrong
+      try {
+        await _audioPlayer.processingStateStream.firstWhere(
+          (state) => state == ProcessingState.completed,
+        ).timeout(
+          const Duration(minutes: 2),
+          onTimeout: () {
+            print('❌ [TTSService] Audio playback timeout after 2 minutes');
+            throw Exception('Audio playback timeout');
+          },
+        );
+      } catch (timeoutError) {
+        print('❌ [TTSService] Playback error: $timeoutError');
+        _isPlaying = false;
+        await stop();
+        return false;
+      }
 
       print('✅ [TTSService] Audio playback complete');
       _isPlaying = false;
@@ -119,7 +136,14 @@ class TTSService {
 
     } catch (e) {
       print('❌ [TTSService] Error: $e');
+      print('❌ [TTSService] Stack trace: ${StackTrace.current}');
       _isPlaying = false;
+      // Ensure player is stopped on error
+      try {
+        await stop();
+      } catch (stopError) {
+        print('⚠️ [TTSService] Error during stop: $stopError');
+      }
       return false;
     }
   }

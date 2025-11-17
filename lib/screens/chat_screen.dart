@@ -131,6 +131,14 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _sendMessage(String message) async {
     if (message.trim().isEmpty) return;
 
+    // CRITICAL: Don't accept new messages while TTS is speaking
+    // This prevents race conditions where TTS gets interrupted mid-speech
+    if (_isSpeaking) {
+      print('⚠️ [ChatScreen] Cannot send message - TTS is still speaking');
+      print('⚠️ [ChatScreen] Wait for Hera to finish speaking before asking next question');
+      return;
+    }
+
     print('📤 [ChatScreen] Sending message: "$message"');
     print('📤 [ChatScreen] User ID: $_userId');
 
