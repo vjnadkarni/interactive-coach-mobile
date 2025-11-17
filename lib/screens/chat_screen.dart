@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../services/api_service.dart';
-import '../services/tts_service.dart';
+import '../services/native_tts_service.dart';
 import '../services/native_speech_service.dart';
 import 'health_dashboard_screen.dart';
 import 'avatar_screen.dart';
@@ -21,7 +21,7 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final ApiService _apiService = ApiService();
-  final TTSService _ttsService = TTSService();
+  final NativeTTSService _ttsService = NativeTTSService();
   final NativeSpeechService _nativeSpeech = NativeSpeechService();
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();

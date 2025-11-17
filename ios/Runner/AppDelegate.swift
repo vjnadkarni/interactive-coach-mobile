@@ -22,9 +22,10 @@ import AVFoundation
       registrar.register(factory, withId: "heygen_avatar_view")
     }
 
-    // REMOVED: Audio session configuration
-    // Let just_audio plugin handle audio session automatically
-    // Manual configuration was causing Error -50 conflicts
+    // Register native audio player plugin (bypasses just_audio issues)
+    if let registrar = self.registrar(forPlugin: "NativeAudioPlayer") {
+      NativeAudioPlayer.register(with: registrar)
+    }
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
