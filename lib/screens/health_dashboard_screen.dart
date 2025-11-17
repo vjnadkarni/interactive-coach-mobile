@@ -11,6 +11,7 @@ import '../models/body_composition.dart';
 import '../widgets/body_composition_card.dart';
 import 'chat_screen.dart';
 import 'body_composition_screen.dart';
+import 'user_dashboard_screen.dart';
 
 /// Health Dashboard Screen
 ///
@@ -50,6 +51,9 @@ class _HealthDashboardScreenState extends State<HealthDashboardScreen> {
   int? _steps;
   int? _activeCalories;
   DateTime? _activityDate;
+
+  // Body composition data
+  BodyComposition? _latestBodyComposition;
 
   // Auto-refresh timer (temporary polling until entitlements are configured)
   Timer? _autoRefreshTimer;
@@ -91,6 +95,9 @@ class _HealthDashboardScreenState extends State<HealthDashboardScreen> {
 
       // Fetch activity directly from HealthKit
       await _fetchTodayActivityFromHealthKit();
+
+      // Fetch body composition directly from HealthKit
+      await _fetchLatestBodyCompositionFromHealthKit();
 
       setState(() {
         _isLoading = false;
@@ -167,6 +174,43 @@ class _HealthDashboardScreenState extends State<HealthDashboardScreen> {
       print('✅ Fetched activity from HealthKit: Steps=$_steps, Calories=$_activeCalories');
     } catch (e) {
       print('❌ Error fetching activity from HealthKit: $e');
+    }
+  }
+
+  Future<void> _fetchLatestBodyCompositionFromHealthKit() async {
+    try {
+      print('⚖️ Fetching body composition directly from HealthKit...');
+
+      // Request permissions if needed
+      await _healthService.requestPermissions();
+
+      final weight = await _healthService.getLatestWeight();
+      final bodyFat = await _healthService.getLatestBodyFat();
+      final bmi = await _healthService.getLatestBMI();
+      final leanMass = await _healthService.getLatestLeanBodyMass();
+
+      if (weight != null) {
+        // HealthKit returns weight in kg (no conversion needed)
+        final weightInKg = weight.value;
+
+        setState(() {
+          _latestBodyComposition = BodyComposition(
+            id: 'healthkit-${DateTime.now().millisecondsSinceEpoch}',
+            userId: 'current-user',
+            weightKg: weightInKg,
+            bodyFatPercent: bodyFat?.value,
+            bmi: bmi?.value,
+            measuredAt: weight.timestamp,
+            source: 'healthkit',
+          );
+        });
+
+        print('✅ Fetched body composition from HealthKit: Weight=$weightInKg kg, Body Fat=${bodyFat?.value}%');
+      } else {
+        print('⚠️ No body composition data found in HealthKit');
+      }
+    } catch (e) {
+      print('❌ Error fetching body composition from HealthKit: $e');
     }
   }
 
@@ -295,8 +339,8 @@ class _HealthDashboardScreenState extends State<HealthDashboardScreen> {
                             );
                           },
                           child: BodyCompositionCard(
-                            measurement: BodyComposition.mock(),
-                            isLoading: false,
+                            measurement: _latestBodyComposition ?? BodyComposition.mock(),
+                            isLoading: _isLoading && _latestBodyComposition == null,
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -334,8 +378,8 @@ class _HealthDashboardScreenState extends State<HealthDashboardScreen> {
             );
           } else if (index == 2) {
             // Navigate to User Dashboard
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('User Dashboard - Coming Soon')),
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => const UserDashboardScreen()),
             );
           }
           // index == 0 is current screen (Health), do nothing
