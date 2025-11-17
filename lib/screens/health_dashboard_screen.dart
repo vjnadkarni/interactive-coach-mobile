@@ -202,6 +202,7 @@ class _HealthDashboardScreenState extends State<HealthDashboardScreen> {
             bmi: bmi?.value,
             measuredAt: weight.timestamp,
             source: 'healthkit',
+            createdAt: DateTime.now(),
           );
         });
 
