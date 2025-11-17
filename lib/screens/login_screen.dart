@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/auth_service.dart';
 import 'avatar_screen_native.dart';
+import 'user_dashboard_screen.dart';
 
 /// Login Screen
 ///
@@ -59,10 +60,10 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       if (response.session != null) {
-        // Login successful - navigate to main app (native HeyGen implementation)
+        // Login successful - navigate to User Dashboard
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (context) => const AvatarScreenNative(),
+            builder: (context) => const UserDashboardScreen(),
           ),
         );
       } else {

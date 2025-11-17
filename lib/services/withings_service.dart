@@ -174,6 +174,7 @@ class WithingsService {
       heartRate: json['heart_rate']?.toInt(),
       source: 'withings',
       withingsMeasurementId: json['measurement_id'],
+      createdAt: DateTime.now(),
     );
   }
 

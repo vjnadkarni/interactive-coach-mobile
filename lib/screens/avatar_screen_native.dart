@@ -7,6 +7,9 @@ import 'dart:async';
 import 'dart:convert';
 import '../services/api_service.dart';
 import '../services/native_speech_service.dart';
+import 'health_dashboard_screen.dart';
+import 'chat_screen.dart';
+import 'user_dashboard_screen.dart';
 
 class AvatarScreenNative extends StatefulWidget {
   const AvatarScreenNative({super.key});
@@ -542,6 +545,39 @@ class _AvatarScreenNativeState extends State<AvatarScreenNative> {
                 ],
               ),
             ),
+          ),
+        ],
+      ),
+
+      // Bottom navigation
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: 1, // Chat tab selected (Video+Voice mode)
+        onTap: (index) {
+          if (index == 0) {
+            // Navigate to Health Dashboard
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => const HealthDashboardScreen()),
+            );
+          } else if (index == 2) {
+            // Navigate to User Dashboard
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => const UserDashboardScreen()),
+            );
+          }
+          // index == 1 is current screen (Chat - Video+Voice), do nothing
+        },
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.favorite),
+            label: 'Health',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.chat),
+            label: 'Chat',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: 'Dashboard',
           ),
         ],
       ),

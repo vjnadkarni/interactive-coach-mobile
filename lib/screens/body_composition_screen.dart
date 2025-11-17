@@ -86,6 +86,7 @@ class _BodyCompositionScreenState extends State<BodyCompositionScreen> {
         bmi: bmi?.value,
         measuredAt: weight.timestamp,
         source: 'healthkit',
+        createdAt: DateTime.now(),
       );
     });
 
