@@ -46,6 +46,12 @@ class HealthService {
     HealthDataType.HIGH_HEART_RATE_EVENT,
     HealthDataType.LOW_HEART_RATE_EVENT,
     HealthDataType.IRREGULAR_HEART_RATE_EVENT,
+
+    // Body Composition
+    HealthDataType.WEIGHT,
+    HealthDataType.BODY_MASS_INDEX,
+    HealthDataType.BODY_FAT_PERCENTAGE,
+    HealthDataType.LEAN_BODY_MASS,
   ];
 
   /// Request permissions for all health data types
@@ -432,5 +438,70 @@ class HealthService {
     print('Active energy today: ${energy != null ? "${energy.round()} kcal" : "No data"}');
 
     print('\n✅ [HealthService] Test complete');
+  }
+
+  /// Get latest weight (last 7 days)
+  Future<VitalReading?> getLatestWeight() async {
+    final now = DateTime.now();
+    final startTime = now.subtract(const Duration(days: 7));
+    print('⚖️ [HealthService] Fetching weight from $startTime to $now');
+    final data = await _health.getHealthDataFromTypes(
+      types: [HealthDataType.WEIGHT],
+      startTime: startTime,
+      endTime: now,
+    );
+    print('⚖️ [HealthService] Retrieved ${data.length} weight readings');
+    if (data.isEmpty) return null;
+    data.sort((a, b) => b.dateTo.compareTo(a.dateTo));
+    final value = (data.first.value as NumericHealthValue).numericValue.toDouble();
+    print('💙 Latest weight: ${value} kg at ${data.first.dateTo}');
+    return VitalReading(value: value, timestamp: data.first.dateTo);
+  }
+
+  /// Get latest body fat % (last 7 days) - Returns as PERCENTAGE (0-100)
+  Future<VitalReading?> getLatestBodyFat() async {
+    final now = DateTime.now();
+    final startTime = now.subtract(const Duration(days: 7));
+    print('🔥 [HealthService] Fetching body fat from $startTime to $now');
+    final data = await _health.getHealthDataFromTypes(
+      types: [HealthDataType.BODY_FAT_PERCENTAGE],
+      startTime: startTime,
+      endTime: now,
+    );
+    print('🔥 [HealthService] Retrieved ${data.length} body fat readings');
+    if (data.isEmpty) return null;
+    data.sort((a, b) => b.dateTo.compareTo(a.dateTo));
+    // HealthKit stores as fraction (0-1), convert to percentage (0-100)
+    final value = (data.first.value as NumericHealthValue).numericValue.toDouble() * 100.0;
+    print('💙 Latest body fat: ${value}% at ${data.first.dateTo}');
+    return VitalReading(value: value, timestamp: data.first.dateTo);
+  }
+
+  /// Get latest BMI (last 7 days)
+  Future<VitalReading?> getLatestBMI() async {
+    final now = DateTime.now();
+    final data = await _health.getHealthDataFromTypes(
+      types: [HealthDataType.BODY_MASS_INDEX],
+      startTime: now.subtract(const Duration(days: 7)),
+      endTime: now,
+    );
+    if (data.isEmpty) return null;
+    data.sort((a, b) => b.dateTo.compareTo(a.dateTo));
+    final value = (data.first.value as NumericHealthValue).numericValue.toDouble();
+    return VitalReading(value: value, timestamp: data.first.dateTo);
+  }
+
+  /// Get latest lean body mass (last 7 days)
+  Future<VitalReading?> getLatestLeanBodyMass() async {
+    final now = DateTime.now();
+    final data = await _health.getHealthDataFromTypes(
+      types: [HealthDataType.LEAN_BODY_MASS],
+      startTime: now.subtract(const Duration(days: 7)),
+      endTime: now,
+    );
+    if (data.isEmpty) return null;
+    data.sort((a, b) => b.dateTo.compareTo(a.dateTo));
+    final value = (data.first.value as NumericHealthValue).numericValue.toDouble();
+    return VitalReading(value: value, timestamp: data.first.dateTo);
   }
 }
