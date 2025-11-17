@@ -42,8 +42,21 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    _initSpeech();
-    _addMessage('assistant', 'Hi! I\'m Hera, your health and wellness coach. How can I help you today?');
+    print('💬 [ChatScreen] Initializing...');
+
+    // Wrap in try-catch to prevent crashes on standalone launch
+    try {
+      _initSpeech();
+      _addMessage('assistant', 'Hi! I\'m Hera, your health and wellness coach. How can I help you today?');
+    } catch (e, stackTrace) {
+      print('❌ [ChatScreen] Error in initState: $e');
+      print('Stack trace: $stackTrace');
+
+      // Show error message to user instead of crashing
+      if (mounted) {
+        _addMessage('error', 'Failed to initialize chat: $e');
+      }
+    }
   }
 
   @override

@@ -61,8 +61,24 @@ class _HealthDashboardScreenState extends State<HealthDashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _loadDashboardData();
-    _startAutoRefresh();
+    print('❤️ [HealthDashboard] Initializing...');
+
+    // Wrap in try-catch to prevent crashes on standalone launch
+    try {
+      _loadDashboardData();
+      _startAutoRefresh();
+    } catch (e, stackTrace) {
+      print('❌ [HealthDashboard] Error in initState: $e');
+      print('Stack trace: $stackTrace');
+
+      // Set error state instead of crashing
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to initialize: $e';
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
