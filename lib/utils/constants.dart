@@ -21,9 +21,9 @@ class AppConstants {
   static const double silenceTimeoutSeconds = 2.2;
 
   // API Endpoints
-  static String get chatStreamEndpoint => '$backendUrl/chat/stream';
-  static String get conversationCheckEndpoint => '$backendUrl/conversation/check';
-  static String get conversationClearEndpoint => '$backendUrl/conversation/clear';
+  static String get chatStreamEndpoint => '$backendUrl/api/chat/stream';
+  static String get conversationCheckEndpoint => '$backendUrl/api/conversation/check';
+  static String get conversationClearEndpoint => '$backendUrl/api/conversation/clear';
 
   // Mobile Avatar WebView URL
   static String get mobileAvatarUrl {

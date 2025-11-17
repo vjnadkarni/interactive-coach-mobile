@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/user_dashboard_screen.dart';
+import 'screens/chat_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/auth_service.dart';
 import 'services/deep_link_service.dart';
@@ -156,8 +157,10 @@ class _AuthGateState extends State<AuthGate> {
     }
 
     // Route to appropriate screen based on authentication status
-    // Fresh app launch: Authenticated users go to Dashboard
-    // Background app: Flutter automatically preserves the last screen
+    // When app is TERMINATED (swiped away): Always go to Dashboard
+    // When app is BACKGROUNDED (home button): Flutter preserves last screen
+    // Note: Flutter doesn't distinguish these cases - both go through main.dart
+    // So we ALWAYS route to Dashboard, which gives user the central hub
     return _isAuthenticated ? const UserDashboardScreen() : const LoginScreen();
   }
 }
