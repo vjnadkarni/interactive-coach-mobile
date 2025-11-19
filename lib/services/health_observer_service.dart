@@ -4,6 +4,7 @@ import 'package:health_kit_reporter/model/type/quantity_type.dart';
 import 'package:health_kit_reporter/model/update_frequency.dart';
 import 'package:health_kit_reporter/model/predicate.dart';
 import 'health_service.dart';
+import 'health_sync_service.dart';
 
 /// Observer-based HealthKit service using health_kit_reporter
 /// Provides real-time notifications when Apple Watch writes new health data
@@ -14,18 +15,25 @@ class HealthObserverService {
   HealthObserverService._internal();
 
   final HealthService _healthService = HealthService();
+  final HealthSyncService _syncService = HealthSyncService();
 
   // Observer subscriptions (keep alive to receive notifications)
   StreamSubscription<void>? _heartRateObserver;
   StreamSubscription<void>? _hrvObserver;
   StreamSubscription<void>? _spo2Observer;
   StreamSubscription<void>? _stepsObserver;
+  StreamSubscription<void>? _bodyMassObserver;
+  StreamSubscription<void>? _bodyFatObserver;
 
   // Callbacks for vitals updates (called when new data arrives)
   Function(VitalReading)? onHeartRateUpdate;
   Function(VitalReading)? onHRVUpdate;
   Function(VitalReading)? onSpO2Update;
   Function(int steps, double calories)? onActivityUpdate;
+  Function()? onBodyCompositionUpdate;
+
+  // Auto-sync to Supabase when new data arrives
+  bool _autoSyncEnabled = false;
 
   /// Start observing heart rate changes
   /// Enables background delivery and sets up observer
@@ -185,17 +193,22 @@ class HealthObserverService {
       await _hrvObserver?.cancel();
       await _spo2Observer?.cancel();
       await _stepsObserver?.cancel();
+      await _bodyMassObserver?.cancel();
+      await _bodyFatObserver?.cancel();
 
       // Disable background delivery
       await HealthKitReporter.disableBackgroundDelivery(QuantityType.heartRate.identifier);
       await HealthKitReporter.disableBackgroundDelivery(QuantityType.heartRateVariabilitySDNN.identifier);
       await HealthKitReporter.disableBackgroundDelivery(QuantityType.oxygenSaturation.identifier);
+      await HealthKitReporter.disableBackgroundDelivery(QuantityType.bodyMass.identifier);
+      await HealthKitReporter.disableBackgroundDelivery(QuantityType.bodyFatPercentage.identifier);
 
       // Clear callbacks
       onHeartRateUpdate = null;
       onHRVUpdate = null;
       onSpO2Update = null;
       onActivityUpdate = null;
+      onBodyCompositionUpdate = null;
 
       print('✅ [HealthObserver] All observers stopped');
     } catch (e) {
@@ -212,4 +225,140 @@ class HealthObserverService {
   Future<bool> hasPermissions() async {
     return await _healthService.hasPermissions();
   }
+
+  /// Start observing body composition changes (weight, body fat from smart scale)
+  Future<void> startObservingBodyComposition({
+    Function()? onUpdate,
+  }) async {
+    print('🔔 [HealthObserver] Starting body composition observers...');
+
+    try {
+      onBodyCompositionUpdate = onUpdate;
+
+      // Enable background delivery for body mass (weight)
+      final massEnabled = await HealthKitReporter.enableBackgroundDelivery(
+        QuantityType.bodyMass.identifier,
+        UpdateFrequency.immediate,
+      );
+
+      if (massEnabled) {
+        print('✅ [HealthObserver] Background delivery enabled for body mass');
+      }
+
+      // Enable background delivery for body fat percentage
+      final fatEnabled = await HealthKitReporter.enableBackgroundDelivery(
+        QuantityType.bodyFatPercentage.identifier,
+        UpdateFrequency.immediate,
+      );
+
+      if (fatEnabled) {
+        print('✅ [HealthObserver] Background delivery enabled for body fat');
+      }
+
+      // Observer for body mass (weight)
+      _bodyMassObserver = HealthKitReporter.observerQuery(
+        [QuantityType.bodyMass.identifier],
+        null,
+        onUpdate: (identifier) async {
+          print('⚖️ NEW BODY MASS DATA AVAILABLE from Smart Scale!');
+          onBodyCompositionUpdate?.call();
+
+          // Auto-sync to Supabase if enabled
+          if (_autoSyncEnabled) {
+            print('🔄 [HealthObserver] Auto-syncing body composition to Supabase...');
+            await _syncService.syncBodyCompositionToBackend();
+          }
+        },
+      );
+
+      // Observer for body fat percentage
+      _bodyFatObserver = HealthKitReporter.observerQuery(
+        [QuantityType.bodyFatPercentage.identifier],
+        null,
+        onUpdate: (identifier) async {
+          print('⚖️ NEW BODY FAT DATA AVAILABLE from Smart Scale!');
+          onBodyCompositionUpdate?.call();
+
+          // Auto-sync to Supabase if enabled
+          if (_autoSyncEnabled) {
+            print('🔄 [HealthObserver] Auto-syncing body composition to Supabase...');
+            await _syncService.syncBodyCompositionToBackend();
+          }
+        },
+      );
+
+      print('✅ [HealthObserver] Body composition observers started');
+    } catch (e) {
+      print('❌ [HealthObserver] Error starting body composition observers: $e');
+    }
+  }
+
+  /// Start the hybrid sync architecture
+  /// - Observers for real-time push notifications from HealthKit
+  /// - Auto-sync to Supabase when new data arrives
+  /// - Polling fallback on app launch to catch missed data
+  Future<void> startHybridSync({
+    bool syncOnStart = true,
+  }) async {
+    print('🚀 [HealthObserver] Starting hybrid sync architecture...');
+
+    _autoSyncEnabled = true;
+
+    // Start all observers with auto-sync to Supabase
+    await startObservingHeartRate(
+      onUpdate: (reading) async {
+        print('💓 [HybridSync] New HR: ${reading.value.round()} BPM');
+        if (_autoSyncEnabled) {
+          await _syncService.syncVitalsToBackend();
+        }
+      },
+    );
+
+    await startObservingHRV(
+      onUpdate: (reading) async {
+        print('💓 [HybridSync] New HRV: ${reading.value.round()} ms');
+        if (_autoSyncEnabled) {
+          await _syncService.syncVitalsToBackend();
+        }
+      },
+    );
+
+    await startObservingSpO2(
+      onUpdate: (reading) async {
+        print('💓 [HybridSync] New SpO2: ${reading.value.round()}%');
+        if (_autoSyncEnabled) {
+          await _syncService.syncVitalsToBackend();
+        }
+      },
+    );
+
+    await startObservingBodyComposition(
+      onUpdate: () async {
+        print('⚖️ [HybridSync] New body composition data');
+        // Sync is handled in the observer itself
+      },
+    );
+
+    // Polling fallback: sync all data on start to catch anything missed
+    if (syncOnStart) {
+      print('🔄 [HybridSync] Running initial sync (polling fallback)...');
+      await _syncService.syncAllHealthData();
+    }
+
+    print('✅ [HybridSync] Hybrid sync architecture started');
+    print('   - Observers: HR, HRV, SpO2, Body Mass, Body Fat');
+    print('   - Auto-sync to Supabase: ENABLED');
+    print('   - Polling fallback: ${syncOnStart ? "COMPLETED" : "DISABLED"}');
+  }
+
+  /// Stop hybrid sync and all observers
+  Future<void> stopHybridSync() async {
+    print('🛑 [HybridSync] Stopping hybrid sync...');
+    _autoSyncEnabled = false;
+    await stopAllObservers();
+    print('✅ [HybridSync] Hybrid sync stopped');
+  }
+
+  /// Check if hybrid sync is running
+  bool get isHybridSyncEnabled => _autoSyncEnabled;
 }

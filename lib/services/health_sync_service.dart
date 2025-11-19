@@ -214,6 +214,50 @@ class HealthSyncService {
     }
   }
 
+  /// Sync body composition (weight, body fat, etc.) to backend
+  Future<bool> syncBodyCompositionToBackend() async {
+    try {
+      print('🔄 Starting body composition sync...');
+
+      final now = DateTime.now();
+
+      // Get latest body composition data from HealthKit
+      final weight = await _healthService.getLatestWeight();
+      final bodyFat = await _healthService.getLatestBodyFat();
+
+      if (weight == null && bodyFat == null) {
+        print('ℹ️  No body composition data available');
+        return true;
+      }
+
+      print('⚖️ Syncing body composition: ${weight?.value.toStringAsFixed(1) ?? "--"} kg, ${bodyFat?.value.toStringAsFixed(1) ?? "--"}%');
+
+      final payload = {
+        'timestamp': now.toUtc().toIso8601String(),
+        if (weight != null) 'weight_kg': weight.value,
+        if (bodyFat != null) 'body_fat_percentage': bodyFat.value,
+        // TODO: Add muscle_mass_kg, bone_mass_kg, water_percentage when available from HealthKit
+      };
+
+      final response = await http.post(
+        Uri.parse('$backendUrl/api/health/body-composition'),
+        headers: await _getHeaders(),
+        body: jsonEncode(payload),
+      );
+
+      if (response.statusCode == 201) {
+        print('✅ Body composition sync successful');
+        return true;
+      } else {
+        print('❌ Failed to sync body composition: ${response.statusCode} ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      print('❌ Error syncing body composition: $e');
+      return false;
+    }
+  }
+
   /// Sync all health data types
   Future<Map<String, bool>> syncAllHealthData() async {
     print('🚀 Starting full health data sync...');
@@ -228,6 +272,9 @@ class HealthSyncService {
 
     // Sync sleep
     results['sleep'] = await syncSleepToBackend();
+
+    // Sync body composition
+    results['body_composition'] = await syncBodyCompositionToBackend();
 
     // Update overall last sync timestamp if all succeeded
     if (results.values.every((success) => success)) {
