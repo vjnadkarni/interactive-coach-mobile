@@ -21,9 +21,11 @@ class AppConstants {
   static const double silenceTimeoutSeconds = 2.2;
 
   // API Endpoints
-  static String get chatStreamEndpoint => '$backendUrl/api/chat/stream';
-  static String get conversationCheckEndpoint => '$backendUrl/api/conversation/check';
-  static String get conversationClearEndpoint => '$backendUrl/api/conversation/clear';
+  // Note: Voice-Only mode uses /chat/stream-test (with ElevenLabs TTS on backend)
+  // Video+Voice mode would use /chat/stream
+  static String get chatStreamEndpoint => '$backendUrl/chat/stream-test';
+  static String get conversationCheckEndpoint => '$backendUrl/conversation/check';
+  static String get conversationClearEndpoint => '$backendUrl/conversation/clear';
 
   // Mobile Avatar WebView URL
   static String get mobileAvatarUrl {

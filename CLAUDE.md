@@ -1,9 +1,9 @@
 # CLAUDE.md - AI Assistant Instructions
 
-## Project: Interactive Coach Mobile - Elenora Health & Wellness Coach
+## Project: Interactive Coach Mobile - Hera Health & Wellness Coach
 
 ### Overview
-This Flutter mobile app provides the Interactive Coach experience on iOS and Android, featuring Elenora - an AI health and wellness coach powered by Claude 4.5 Sonnet. The app connects to the same FastAPI backend as the web application and will integrate with Apple Watch (HealthKit) and Android watches (Health Connect) for health vitals tracking.
+This Flutter mobile app provides the Interactive Coach experience on iOS and Android, featuring Hera - an AI health and wellness coach powered by Claude 4.5 Sonnet. The app connects to the same FastAPI backend as the web application and will integrate with Apple Watch (HealthKit) and Android watches (Health Connect) for health vitals tracking.
 
 ---
 
@@ -54,19 +54,19 @@ This Flutter mobile app provides the Interactive Coach experience on iOS and And
 
 ---
 
-## 🔴 CRITICAL: Elenora's Personality Enforcement
+## 🔴 CRITICAL: Hera's Personality Enforcement
 
 ### The Problem
-Elenora must maintain her identity as a health & wellness coach across ALL platforms (web and mobile). She is NOT a business coach, NOT a general assistant, NOT Sofia or Anna or any other persona.
+Hera must maintain her identity as a health & wellness coach across ALL platforms (web and mobile). She is NOT a business coach, NOT a general assistant, NOT Sofia or Anna or any other persona.
 
-### Elenora's Identity (STRICT)
-- **Name**: ELENORA (NOT Sofia, NOT Anna, NOT any business coach)
+### Hera's Identity (STRICT)
+- **Name**: HERA (NOT Sofia, NOT Anna, NOT any business coach)
 - **Role**: Health & Wellness Coach ONLY
 - **Expertise**: Fitness, nutrition, training, sports, health vitals
 - **Personality**: Friendly, bubbly, enthusiastic, warm, engaging
 - **Communication**: 2-4 sentences, asks questions, encouraging
 
-### Topics Elenora MUST Discuss
+### Topics Hera MUST Discuss
 ✅ Fitness, exercise, training (strength, cardio, HIIT, endurance)
 ✅ Nutrition, diet, supplements, healthy eating
 ✅ Sports (all kinds)
@@ -74,7 +74,7 @@ Elenora must maintain her identity as a health & wellness coach across ALL platf
 ✅ Training plans, progress tracking
 ✅ Fitness equipment, gyms
 
-### Topics Elenora MUST NEVER Discuss
+### Topics Hera MUST NEVER Discuss
 ❌ Business strategy, finance, career advice
 ❌ Technology, software, coding
 ❌ General assistant tasks
@@ -132,9 +132,17 @@ final apiUrl = "http://192.168.7.30:8000"; // ❌ NEVER DO THIS
 
 ### Claude 4.5 Sonnet ONLY
 
-**Model ID**: `claude-sonnet-4-20250514`
+**Model ID**: `claude-sonnet-4-5-20250929`
 
-All AI responses come from the FastAPI backend which uses Claude 4.5 Sonnet. The mobile app does NOT make direct calls to Anthropic API - it streams responses from the backend `/chat/stream` endpoint.
+All AI responses come from the FastAPI backend which uses Claude 4.5 Sonnet. The mobile app does NOT make direct calls to Anthropic API - it streams responses from the backend `/chat/stream-test` endpoint (Voice-Only mode with ElevenLabs TTS).
+
+**IMPORTANT: API Endpoint Paths**
+The backend endpoints do NOT have an `/api` prefix:
+- ✅ CORRECT: `/chat/stream-test` (Voice-Only mode)
+- ✅ CORRECT: `/chat/stream` (Video+Voice mode)
+- ✅ CORRECT: `/conversation/check`
+- ✅ CORRECT: `/conversation/clear`
+- ❌ WRONG: `/api/chat/stream` (will return 404)
 
 ---
 
@@ -146,11 +154,11 @@ All AI responses come from the FastAPI backend which uses Claude 4.5 Sonnet. The
 ```xml
 <!-- Speech Recognition -->
 <key>NSSpeechRecognitionUsageDescription</key>
-<string>This app uses speech recognition so you can talk to Elenora, your health and wellness coach.</string>
+<string>This app uses speech recognition so you can talk to Hera, your health and wellness coach.</string>
 
 <!-- Microphone -->
 <key>NSMicrophoneUsageDescription</key>
-<string>This app needs microphone access so you can speak with Elenora.</string>
+<string>This app needs microphone access so you can speak with Hera.</string>
 
 <!-- HealthKit (future) -->
 <key>NSHealthShareUsageDescription</key>
@@ -392,7 +400,7 @@ flutter run -d 00008101-001D44303C08801E
 - [x] App launches without crash
 - [x] Permissions prompt for speech recognition appears
 - [x] User grants permission → App shows chat interface
-- [x] Elenora's greeting message appears: "Hi! I'm Elenora, your health and wellness coach..."
+- [x] Hera's greeting message appears: "Hi! I'm Hera, your health and wellness coach..."
 
 ### Speech Recognition
 - [x] Tap microphone → Red microphone icon
@@ -403,15 +411,15 @@ flutter run -d 00008101-001D44303C08801E
 ### Text Input
 - [x] Type message in text field
 - [x] Tap send button → Message appears as blue bubble
-- [x] Backend receives message → Elenora responds
+- [x] Backend receives message → Hera responds
 
 ### Conversation
-- [x] Elenora responds in character (health/fitness topics)
+- [x] Hera responds in character (health/fitness topics)
 - [x] Streaming responses work (text appears incrementally)
-- [x] Purple chat bubble for Elenora
+- [x] Purple chat bubble for Hera
 - [x] Multi-turn conversation works (tested 5+ exchanges)
 - [x] Conversation history maintained
-- [x] Elenora stays on topic (fitness/health only)
+- [x] Hera stays on topic (fitness/health only)
 
 ### Network
 - [x] Backend accessible at 192.168.7.30:8000
@@ -681,6 +689,20 @@ Instead of rebuilding the entire HeyGen SDK in native Swift:
   - Identified blocker: Missing WebRTC signaling to HeyGen's server
   - WebView approach recommended for Video+Voice mode
   - Status: Native blocked, awaiting decision on WebView vs SDK v2
+
+- **v0.6.0** - Health Dashboard Enhancements + API Endpoint Fix (Nov 19, 2025) ✅
+  - Enhanced Health Dashboard with "See more..." modal popups
+    - Vitals card: Added Resting HR, Walking HR, Respiratory Rate
+    - Activity card: Added Exercise Time, Distance
+    - Sleep card: Added Total, Deep, REM, Core, Awake sleep metrics
+  - Added `health` getter to HealthService for direct Health instance access
+  - **Critical Bug Fix**: Fixed Chat 404 error in Release build
+    - Root cause: API endpoints had incorrect `/api` prefix
+    - Fixed: `/api/chat/stream` → `/chat/stream-test` (Voice-Only mode)
+    - Fixed: `/api/conversation/check` → `/conversation/check`
+    - Fixed: `/api/conversation/clear` → `/conversation/clear`
+  - Updated all Elenora references to Hera throughout documentation
+  - Status: Release build tested and working on iPhone 12
 
 ---
 

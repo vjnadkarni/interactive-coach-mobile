@@ -18,6 +18,9 @@ class HealthService {
 
   final Health _health = Health();
 
+  /// Expose Health instance for direct queries from other services
+  Health get health => _health;
+
   /// All health data types we want to access from Apple Watch
   static const List<HealthDataType> _healthDataTypes = [
     // Vitals
