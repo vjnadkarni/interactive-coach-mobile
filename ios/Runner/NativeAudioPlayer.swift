@@ -22,7 +22,8 @@ class NativeAudioPlayer: NSObject, FlutterPlugin, AVAudioPlayerDelegate {
                 result(FlutterError(code: "INVALID_ARGS", message: "Audio data required", details: nil))
                 return
             }
-            playAudio(data: audioData.data, result: result)
+            let useSpeaker = args["useSpeaker"] as? Bool ?? false
+            playAudio(data: audioData.data, useSpeaker: useSpeaker, result: result)
 
         case "stop":
             stopAudio(result: result)
@@ -35,8 +36,8 @@ class NativeAudioPlayer: NSObject, FlutterPlugin, AVAudioPlayerDelegate {
         }
     }
 
-    private func playAudio(data: Data, result: @escaping FlutterResult) {
-        print("🎵 [NativeAudioPlayer] Playing audio (\(data.count) bytes)")
+    private func playAudio(data: Data, useSpeaker: Bool, result: @escaping FlutterResult) {
+        print("🎵 [NativeAudioPlayer] Playing audio (\(data.count) bytes, speaker: \(useSpeaker))")
 
         // Stop any existing playback
         if audioPlayer != nil && isPlaying {
@@ -47,8 +48,22 @@ class NativeAudioPlayer: NSObject, FlutterPlugin, AVAudioPlayerDelegate {
 
         do {
             // CRITICAL: Configure audio session FIRST, before creating player
-            try AVAudioSession.sharedInstance().setCategory(.playback, options: [.mixWithOthers])
-            try AVAudioSession.sharedInstance().setActive(true)
+            if useSpeaker {
+                // Use .playAndRecord with .defaultToSpeaker to route audio to iPhone speaker
+                // This is the proper way to get speakerphone-like behavior
+                try AVAudioSession.sharedInstance().setCategory(
+                    .playAndRecord,
+                    mode: .default,
+                    options: [.defaultToSpeaker]
+                )
+                try AVAudioSession.sharedInstance().setActive(true)
+                NSLog("🔊 [NativeAudioPlayer] Audio configured for iPhone speaker")
+            } else {
+                // Use .playback category for normal earpiece/headphones output
+                try AVAudioSession.sharedInstance().setCategory(.playback, options: [.mixWithOthers])
+                try AVAudioSession.sharedInstance().setActive(true)
+                NSLog("🔊 [NativeAudioPlayer] Audio configured for earpiece/headphones")
+            }
 
             // Create new player with audio data
             audioPlayer = try AVAudioPlayer(data: data)

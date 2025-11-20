@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import 'health_dashboard_screen.dart';
 import 'chat_screen.dart';
 import 'login_screen.dart';
+import 'settings_screen.dart';
 
 /// User Dashboard Screen
 ///
@@ -393,14 +394,14 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
             ),
             const SizedBox(height: 12),
 
-            // Settings Button (placeholder)
+            // Settings Button
             _buildActionButton(
               icon: Icons.settings,
               label: 'Settings',
               color: Colors.grey.shade600,
               onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Settings - Coming Soon')),
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (context) => const SettingsScreen()),
                 );
               },
             ),

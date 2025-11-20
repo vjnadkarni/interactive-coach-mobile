@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart';
 import '../utils/constants.dart';
+import '../screens/settings_screen.dart';
 
 /// Native TTS Service using iOS AVAudioPlayer
 /// Bypasses just_audio package issues with consecutive playback
@@ -70,12 +71,17 @@ class NativeTTSService {
 
       print('✅ [NativeTTS] Received audio (${response.bodyBytes.length} bytes)');
 
+      // Get user's audio output preference
+      final useSpeaker = await AudioSettings.shouldUseSpeaker();
+      print('🔊 [NativeTTS] Audio output: ${useSpeaker ? "Speaker" : "Earpiece/Headphones"}');
+
       // Play audio using native iOS player
       _isPlaying = true;
 
       try {
         final result = await platform.invokeMethod('play', {
           'audioData': response.bodyBytes,
+          'useSpeaker': useSpeaker,
         });
 
         if (result == true) {
