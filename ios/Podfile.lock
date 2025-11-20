@@ -11,6 +11,8 @@ PODS:
   - Flutter (1.0.0)
   - flutter_secure_storage (6.0.0):
     - Flutter
+  - flutter_tts (0.0.1):
+    - Flutter
   - health (13.2.1):
     - Flutter
   - health_kit_reporter (2.1.0):
@@ -49,6 +51,7 @@ DEPENDENCIES:
   - device_info_plus (from `.symlinks/plugins/device_info_plus/ios`)
   - Flutter (from `Flutter`)
   - flutter_secure_storage (from `.symlinks/plugins/flutter_secure_storage/ios`)
+  - flutter_tts (from `.symlinks/plugins/flutter_tts/ios`)
   - health (from `.symlinks/plugins/health/ios`)
   - health_kit_reporter (from `.symlinks/plugins/health_kit_reporter/ios`)
   - just_audio (from `.symlinks/plugins/just_audio/darwin`)
@@ -78,6 +81,8 @@ EXTERNAL SOURCES:
     :path: Flutter
   flutter_secure_storage:
     :path: ".symlinks/plugins/flutter_secure_storage/ios"
+  flutter_tts:
+    :path: ".symlinks/plugins/flutter_tts/ios"
   health:
     :path: ".symlinks/plugins/health/ios"
   health_kit_reporter:
@@ -109,6 +114,7 @@ SPEC CHECKSUMS:
   device_info_plus: 21fcca2080fbcd348be798aa36c3e5ed849eefbe
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   flutter_secure_storage: 1ed9476fba7e7a782b22888f956cce43e2c62f13
+  flutter_tts: b88dbc8655d3dc961bc4a796e4e16a4cc1795833
   health: e310387222e199d4b3261337490a67aaff6d18eb
   health_kit_reporter: c415db36059e3adea874264998f4888c45687940
   HealthKitReporter: 4fae728be1afa52c4833d4cfb9835b368bfc89e6

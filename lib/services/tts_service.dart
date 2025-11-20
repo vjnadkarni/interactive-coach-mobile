@@ -1,45 +1,91 @@
-import 'dart:convert';
-import 'dart:io';
-import 'dart:typed_data';
-import 'package:http/http.dart' as http;
-import 'package:just_audio/just_audio.dart';
-import 'package:audio_session/audio_session.dart';
-import 'package:path_provider/path_provider.dart';
-import '../utils/constants.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 
-/// Custom StreamAudioSource for in-memory audio playback
-class BytesAudioSource extends StreamAudioSource {
-  final Uint8List _bytes;
-
-  BytesAudioSource(this._bytes);
-
-  @override
-  Future<StreamAudioResponse> request([int? start, int? end]) async {
-    start = start ?? 0;
-    end = end ?? _bytes.length;
-
-    return StreamAudioResponse(
-      sourceLength: _bytes.length,
-      contentLength: end - start,
-      offset: start,
-      stream: Stream.value(_bytes.sublist(start, end)),
-      contentType: 'audio/mpeg',
-    );
-  }
-}
-
-/// Text-to-Speech Service using ElevenLabs API
-/// Generates audio from text using Rachel voice (same as web app)
+/// Text-to-Speech Service using Apple's native AVSpeechSynthesizer
+/// Replaces ElevenLabs to fix:
+/// 1. First word truncation issue
+/// 2. Imperfect transcription of numbers, abbreviations, ranges
 class TTSService {
-  AudioPlayer? _audioPlayer; // Nullable - create fresh player for each request
+  FlutterTts? _flutterTts;
   bool _isPlaying = false;
+  bool _isInitialized = false;
 
-  // REMOVED: Audio session configuration
-  // The AppDelegate.swift already configures the audio session globally
-  // with .playback category and .spokenAudio mode.
-  // Attempting to reconfigure it here causes conflicts (Error -50)
+  /// Initialize the TTS engine
+  Future<void> _ensureInitialized() async {
+    if (_isInitialized && _flutterTts != null) return;
 
-  /// Generate and play audio from text using ElevenLabs
+    _flutterTts = FlutterTts();
+
+    // Configure for iOS
+    await _flutterTts!.setSharedInstance(true);
+    await _flutterTts!.setIosAudioCategory(
+      IosTextToSpeechAudioCategory.playback,
+      [
+        IosTextToSpeechAudioCategoryOptions.allowBluetooth,
+        IosTextToSpeechAudioCategoryOptions.allowBluetoothA2DP,
+        IosTextToSpeechAudioCategoryOptions.mixWithOthers,
+      ],
+      IosTextToSpeechAudioMode.voicePrompt,
+    );
+
+    // Set voice parameters for natural speech
+    await _flutterTts!.setLanguage("en-US");
+    await _flutterTts!.setSpeechRate(0.5); // 0.0 to 1.0, 0.5 is normal
+    await _flutterTts!.setVolume(1.0);
+    await _flutterTts!.setPitch(1.0);
+
+    // Try to use Samantha voice (high quality female voice)
+    // Fall back to default if not available
+    final voices = await _flutterTts!.getVoices;
+    print('🎤 [TTSService] Available voices: ${voices.length}');
+
+    // Look for Samantha or a good alternative
+    Map<String, String>? selectedVoice;
+    for (var voice in voices) {
+      final name = voice['name']?.toString() ?? '';
+      final locale = voice['locale']?.toString() ?? '';
+
+      // Prefer Samantha (enhanced) or similar high-quality voices
+      if (locale.startsWith('en-US')) {
+        if (name.contains('Samantha')) {
+          selectedVoice = {'name': name, 'locale': locale};
+          print('🎤 [TTSService] Found Samantha voice: $name');
+          break;
+        }
+        // Keep first US English voice as fallback
+        selectedVoice ??= {'name': name, 'locale': locale};
+      }
+    }
+
+    if (selectedVoice != null) {
+      await _flutterTts!.setVoice(selectedVoice);
+      print('🎤 [TTSService] Using voice: ${selectedVoice['name']}');
+    }
+
+    // Set up completion handler
+    _flutterTts!.setCompletionHandler(() {
+      print('✅ [TTSService] Speech completed');
+      _isPlaying = false;
+    });
+
+    _flutterTts!.setErrorHandler((msg) {
+      print('❌ [TTSService] Error: $msg');
+      _isPlaying = false;
+    });
+
+    _flutterTts!.setCancelHandler(() {
+      print('🛑 [TTSService] Speech cancelled');
+      _isPlaying = false;
+    });
+
+    _flutterTts!.setStartHandler(() {
+      print('▶️ [TTSService] Speech started');
+    });
+
+    _isInitialized = true;
+    print('✅ [TTSService] Apple TTS initialized');
+  }
+
+  /// Generate and play audio from text using Apple TTS
   ///
   /// Parameters:
   /// - text: The text to convert to speech
@@ -49,91 +95,49 @@ class TTSService {
     if (_isPlaying) {
       print('⚠️ [TTSService] Already playing audio, stopping previous audio');
       await stop();
-      // Add small delay to ensure stop completes
       await Future.delayed(const Duration(milliseconds: 100));
     }
 
-    // CRITICAL FIX: Create fresh AudioPlayer for each request
-    // Reusing the same player causes it to get stuck after first playback
-    _audioPlayer?.dispose();
-    _audioPlayer = AudioPlayer();
-    print('🎵 [TTSService] Created fresh AudioPlayer instance');
-
     try {
-      // Audio session is already configured globally in AppDelegate.swift
-      // No need to configure it here (doing so causes conflicts)
+      await _ensureInitialized();
 
       print('🔊 [TTSService] Generating speech for: "${text.substring(0, text.length > 50 ? 50 : text.length)}..."');
 
-      // Strip references section (everything after "---\nReferences:" or "\n\nReferences:")
+      // Strip references section
       final cleanText = _stripReferences(text);
       print('📝 [TTSService] Clean text (${cleanText.length} chars): "${cleanText.substring(0, cleanText.length > 50 ? 50 : cleanText.length)}..."');
 
-      final url = Uri.parse(
-        'https://api.elevenlabs.io/v1/text-to-speech/${AppConstants.elevenLabsVoiceId}/stream'
-      );
+      _isPlaying = true;
 
-      print('🌐 [TTSService] Calling ElevenLabs API...');
-      final response = await http.post(
-        url,
-        headers: {
-          'xi-api-key': AppConstants.elevenLabsApiKey,
-          'Content-Type': 'application/json',
-        },
-        body: json.encode({
-          'text': cleanText,
-          'model_id': 'eleven_monolingual_v1',
-          'voice_settings': {
-            'stability': 0.5,
-            'similarity_boost': 0.75,
-          },
-        }),
-      );
+      // Speak the text
+      final result = await _flutterTts!.speak(cleanText);
 
-      if (response.statusCode != 200) {
-        print('❌ [TTSService] ElevenLabs API error: ${response.statusCode}');
-        print('❌ [TTSService] Response body: ${response.body}');
-        _isPlaying = false; // CRITICAL: Reset flag on API error
+      if (result != 1) {
+        print('❌ [TTSService] speak() returned: $result');
+        _isPlaying = false;
         return false;
       }
 
-      print('✅ [TTSService] Received audio (${response.bodyBytes.length} bytes)');
+      // Wait for completion (with timeout)
+      final startTime = DateTime.now();
+      while (_isPlaying) {
+        await Future.delayed(const Duration(milliseconds: 100));
 
-      // Play audio using custom StreamAudioSource (no file storage needed!)
-      _isPlaying = true;
-
-      final audioSource = BytesAudioSource(response.bodyBytes);
-      await _audioPlayer!.setAudioSource(audioSource);
-      print('🔊 [TTSService] Playing audio from memory stream...');
-      await _audioPlayer!.play();
-
-      // Wait for playback to complete with timeout (reduced to 30 seconds for faster feedback)
-      try {
-        await _audioPlayer!.processingStateStream.firstWhere(
-          (state) => state == ProcessingState.completed,
-        ).timeout(
-          const Duration(seconds: 30),
-          onTimeout: () {
-            print('❌ [TTSService] Audio playback timeout after 30 seconds');
-            throw Exception('Audio playback timeout');
-          },
-        );
-      } catch (timeoutError) {
-        print('❌ [TTSService] Playback error: $timeoutError');
-        _isPlaying = false;
-        await stop();
-        return false;
+        // Timeout after 60 seconds
+        if (DateTime.now().difference(startTime).inSeconds > 60) {
+          print('❌ [TTSService] Timeout waiting for speech completion');
+          await stop();
+          return false;
+        }
       }
 
       print('✅ [TTSService] Audio playback complete');
-      _isPlaying = false;
       return true;
 
     } catch (e) {
       print('❌ [TTSService] Error: $e');
       print('❌ [TTSService] Stack trace: ${StackTrace.current}');
       _isPlaying = false;
-      // Ensure player is stopped on error
       try {
         await stop();
       } catch (stopError) {
@@ -145,9 +149,9 @@ class TTSService {
 
   /// Stop current audio playback
   Future<void> stop() async {
-    if (_isPlaying && _audioPlayer != null) {
+    if (_flutterTts != null) {
       print('🛑 [TTSService] Stopping audio playback');
-      await _audioPlayer!.stop();
+      await _flutterTts!.stop();
       _isPlaying = false;
     }
   }
@@ -155,7 +159,6 @@ class TTSService {
   /// Strip references section from text before TTS
   /// Removes everything after "---\nReferences:" or "\n\nReferences:"
   String _stripReferences(String text) {
-    // Pattern matches both "\n---\nReferences:" and "\n\nReferences:"
     final pattern = RegExp(r'(\n---\nReferences:|\n\nReferences:)[\s\S]*$', caseSensitive: false);
     final cleanText = text.replaceAll(pattern, '').trim();
 
@@ -169,8 +172,9 @@ class TTSService {
   /// Check if audio is currently playing
   bool get isPlaying => _isPlaying;
 
-  /// Dispose audio player resources
+  /// Dispose TTS resources
   void dispose() {
-    _audioPlayer?.dispose();
+    _flutterTts?.stop();
+    _isInitialized = false;
   }
 }

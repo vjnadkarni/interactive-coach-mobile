@@ -702,6 +702,12 @@ Instead of rebuilding the entire HeyGen SDK in native Swift:
     - Fixed: `/api/conversation/check` → `/conversation/check`
     - Fixed: `/api/conversation/clear` → `/conversation/clear`
   - Updated all Elenora references to Hera throughout documentation
+  - **Apple TTS Experiment**: Tested AVSpeechSynthesizer as ElevenLabs replacement
+    - ❌ Rejected due to robotic voice quality (sounds like "AI voice")
+    - ❌ Mid-speech failures with long texts
+    - ❌ App crashes after TTS failures
+    - ✅ Decision: Keep ElevenLabs TTS for natural-sounding Rachel voice
+    - Note: First-word truncation and abbreviation issues are acceptable trade-offs
   - Status: Release build tested and working on iPhone 12
 
 ---

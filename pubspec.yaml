@@ -1,5 +1,5 @@
 name: interactive_coach_mobile
-description: "Interactive Coach Mobile - Elenora Health & Wellness Coach with Apple Watch & Android Watch integration"
+description: "Interactive Coach Mobile - Hera Health & Wellness Coach with Apple Watch & Android Watch integration"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -59,7 +59,10 @@ dependencies:
   # Speech recognition (using native iOS with SFSpeech framework)
   speech_to_text: ^7.0.0
 
-  # Audio playback for TTS
+  # Text-to-Speech using Apple's native AVSpeechSynthesizer
+  flutter_tts: ^4.2.0
+
+  # Audio playback (for audio session configuration)
   just_audio: ^0.9.40
 
   # Permissions handling
