@@ -536,6 +536,33 @@ cd ..
     - Documentation: `HEALTHKIT_OBSERVER_SETUP.md`
   - Status: Fully functional with polling, ready to migrate to observers
 
+- **v0.5.0** - Health Dashboard Enhancements + Chat 404 Fix (Nov 18, 2025) ✅
+  - Health Dashboard UI polish (card styling, spacing, icons)
+  - Body composition display (weight, body fat %)
+  - Fixed Chat 404 error (removed `/api` prefix from endpoints)
+  - API endpoint documentation added to CLAUDE.md
+  - Status: Production-ready
+
+- **v0.6.0** - Audio Output Settings (Nov 19, 2025) ✅
+  - **New Feature**: Audio output routing configuration
+    - Dashboard → Settings → Audio Output selection
+    - iPhone Speaker mode (uses `.playAndRecord` with `.defaultToSpeaker`)
+    - Earpiece/Headphones mode (uses `.playback` category)
+    - Settings persist via SharedPreferences
+  - **Files Created**:
+    - `lib/screens/settings_screen.dart` (audio output UI with radio buttons)
+  - **Files Modified**:
+    - `ios/Runner/NativeAudioPlayer.swift` (AVAudioSession routing)
+    - `lib/services/native_tts_service.dart` (reads user preference)
+    - `lib/screens/user_dashboard_screen.dart` (Settings navigation)
+  - **Apple TTS Experiment**: Tested AVSpeechSynthesizer as ElevenLabs replacement
+    - ❌ Rejected due to robotic voice quality (sounds like "AI voice")
+    - ❌ Mid-speech failures with long texts
+    - ❌ App crashes after TTS failures
+    - ✅ Decision: Keep ElevenLabs TTS for natural-sounding Rachel voice
+    - Note: First-word truncation and abbreviation issues are acceptable trade-offs
+  - Status: Production-ready
+
 ---
 
 ## 📱 **Apple Watch Series 9 Integration Status**
